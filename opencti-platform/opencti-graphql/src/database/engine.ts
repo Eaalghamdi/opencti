@@ -1897,6 +1897,16 @@ const BASE_SEARCH_HISTORY = [
   'context_data.history_changes.changes_added.raw',
   'context_data.history_changes.changes_removed.raw',
 ];
+// Text and select values of the custom fields, nested in custom_field_values
+const BASE_SEARCH_CUSTOM_FIELDS = [
+  'custom_field_values.string_value',
+  'custom_field_values.select_value',
+  'custom_field_values.select_values',
+];
+// Custom field values are nested, searched as the connections.
+const buildCustomFieldValuesSearch = (query: Record<string, unknown>) => ({
+  nested: { path: 'custom_field_values', ignore_unmapped: true, query: { bool: { must: [query] } } },
+});
 const BASE_SEARCH_ATTRIBUTES = [
   // Pounds for attributes search
   `${ATTRIBUTE_NAME}^5`,
@@ -2163,6 +2173,7 @@ export const elGenerateFullTextSearchShould = (search: string, args: ProcessSear
           fields: BASE_SEARCH_ATTRIBUTES,
         },
       },
+      buildCustomFieldValuesSearch({ multi_match: { type: 'phrase', query: ex, lenient: true, fields: BASE_SEARCH_CUSTOM_FIELDS } }),
     ]).flat());
     if (searchPhrase) {
       pushAll(shouldSearch, [
@@ -2181,6 +2192,7 @@ export const elGenerateFullTextSearchShould = (search: string, args: ProcessSear
             fields: BASE_SEARCH_ATTRIBUTES,
           },
         },
+        buildCustomFieldValuesSearch({ query_string: { query: searchPhrase, analyze_wildcard: true, fields: BASE_SEARCH_CUSTOM_FIELDS } }),
       ]);
     }
     pushAll(shouldSearch, buildConnectionsSearchShould(elGenerateConnectionsSearchQueries(search, args), args));
