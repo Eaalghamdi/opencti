@@ -29,7 +29,7 @@ import { topEntitiesList } from '../../../../src/database/middleware-loader';
 import { buildPaginationFromEdges } from '../../../../src/database/utils';
 import { CONFIG_PRESET_FAMILIES } from '../../../../src/modules/configPreset/configPreset-registry';
 import type { AuthContext, AuthUser } from '../../../../src/types/user';
-import { builtInTheme, customTheme, mockThemeLoaders, otherCustomTheme } from './configPreset-themes-fixtures';
+import { builtInTheme, customLabel, customTheme, mockThemeLoaders, otherCustomTheme, otherLabel } from './configPreset-themes-fixtures';
 
 const buildSchema = () => {
   const schema = makeExecutableSchema({
@@ -68,6 +68,7 @@ const themeItem = (theme: { standard_id: string; name: string }, isDefault: bool
   dependsOn: [],
   isDefault,
 });
+const labelItem = (label: { standard_id: string; value: string }) => ({ key: label.standard_id, label: label.value, translatable: false, dependsOn: [], isDefault: false });
 const onePage = (globalCount: number) => ({ hasNextPage: false, globalCount });
 
 describe('Config preset exportable types query', () => {
@@ -109,6 +110,15 @@ describe('Config preset exportable types query', () => {
         items: [staticItem('hiddenEntityTypes', 'Hidden entity types')],
         itemsPageInfo: onePage(1),
       },
+      {
+        key: 'labels',
+        label: 'Labels',
+        description: 'Labels and their colors',
+        group: { key: 'taxonomy', label: 'Taxonomy' },
+        // The labels by value
+        items: [labelItem(otherLabel), labelItem(customLabel)],
+        itemsPageInfo: onePage(2),
+      },
     ]);
   });
 
@@ -124,7 +134,7 @@ describe('Config preset exportable types query', () => {
   it('lists the messages set on the platform and hides the category when none is set', async () => {
     // No message is set in the default settings of these tests: the category is not returned
     const none = await graphql({ schema: buildSchema(), source: QUERY, contextValue: { user: bypassUser } });
-    expect((none.data?.configPresetExportableTypes as { key: string }[]).map((type) => type.key)).toEqual(['platform', 'branding', 'hiddenEntityTypes']);
+    expect((none.data?.configPresetExportableTypes as { key: string }[]).map((type) => type.key)).toEqual(['platform', 'branding', 'hiddenEntityTypes', 'labels']);
 
     vi.mocked(topEntitiesList).mockResolvedValue([{ id: 'settings-id', platform_theme: customTheme.id, platform_login_message: 'Welcome' }] as never);
     const result = await graphql({ schema: buildSchema(), source: QUERY, contextValue: { user: bypassUser } });
@@ -166,6 +176,7 @@ describe('Config preset exportable types query', () => {
       ['platform', 'platformSettings'],
       ['branding', 'platformSettings'],
       ['hiddenEntityTypes', 'dataModel'],
+      ['labels', 'taxonomy'],
     ]);
     expect(types[0].items).toEqual([{ key: 'entity-id', label: 'User data label', translatable: false, dependsOn: [], isDefault: false }]);
     expect(types[0].itemsPageInfo.globalCount).toBe(25);

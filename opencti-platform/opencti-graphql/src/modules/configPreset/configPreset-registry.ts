@@ -5,16 +5,18 @@ import { platformFamily } from './registry/platform-configPreset-registry';
 import { brandingFamily } from './registry/branding-configPreset-registry';
 import { messagesFamily } from './registry/messages-configPreset-registry';
 import { hiddenEntityTypesFamily } from './registry/hiddenEntityTypes-configPreset-registry';
+import { labelsFamily } from './registry/labels-configPreset-registry';
 
 export { BRANDING_FAMILY_ID } from './registry/branding-configPreset-registry';
 
-// In registry order, the categories of the spec table: Platform settings (platform, branding, messages), then Data model.
+// In registry order, the categories of the spec table: Platform settings (platform, branding, messages), Data model, then Taxonomy.
 // Each family is defined in its own file under registry/.
 export const CONFIG_PRESET_FAMILIES: ConfigPresetFamilyDefinition[] = [
   platformFamily,
   brandingFamily,
   messagesFamily,
   hiddenEntityTypesFamily,
+  labelsFamily,
 ];
 
 // How the result of an item is shown next to its family: the name of its type, its place in the registry and its group.
