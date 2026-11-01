@@ -1,4 +1,21 @@
-@import "tailwindcss";
+/*
+ * Tailwind is imported layer-by-layer (theme + utilities only) instead of via the
+ * blanket `@import "tailwindcss"`, which would also pull in Tailwind's preflight
+ * (`base` layer) - a global CSS reset (`*{margin:0;padding:0}`, `ol,ul{list-style:none}`,
+ * `h1..h6{font-size:inherit}`, ...) that would silently restyle existing, untouched app
+ * content such as react-markdown output, since this file is loaded on every page.
+ *
+ * `source(none)` disables Tailwind's automatic whole-project content detection, and
+ * `@source "./"` re-enables scanning for this directory (`src/components/ds/`) only,
+ * minus its test files: otherwise any class-like word anywhere in the app's sources
+ * would generate a global Tailwind utility rule. Note that this comment itself is
+ * scanned too, so avoid quoting utility class names in it.
+ */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities) source(none);
+@source "./";
+@source not "./**/*.test.{ts,tsx}";
 
 /*
  * HUMAIN-DS-style token alias layer.
