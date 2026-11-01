@@ -1,3 +1,4 @@
+import type { FormEvent } from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -30,6 +31,30 @@ describe('Button', () => {
   it('requires and exposes an accessible name when iconOnly', () => {
     render(<Button iconOnly aria-label="Close" onClick={() => {}} />);
     expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
+  });
+
+  it('defaults to type="button" so it does not submit an enclosing form', async () => {
+    const onSubmit = vi.fn((event: FormEvent) => event.preventDefault());
+    render(
+      <form onSubmit={onSubmit}>
+        <Button>Cancel</Button>
+      </form>,
+    );
+    const button = screen.getByRole('button', { name: 'Cancel' });
+    expect(button).toHaveAttribute('type', 'button');
+    await userEvent.click(button);
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('submits an enclosing form when type="submit" is passed explicitly', async () => {
+    const onSubmit = vi.fn((event: FormEvent) => event.preventDefault());
+    render(
+      <form onSubmit={onSubmit}>
+        <Button type="submit">Save</Button>
+      </form>,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onSubmit).toHaveBeenCalledOnce();
   });
 
   it('mirrors spacing under dir="rtl" without a hardcoded left/right class', () => {

@@ -69,11 +69,15 @@ export function Button({
   className,
   children,
   disabled,
+  // Default to a plain button: a native <button> inside a <form> is otherwise
+  // type="submit", so callers must opt into submitting explicitly.
+  type = 'button',
   ...rest
 }: ButtonProps) {
   return (
     <button
       {...rest}
+      type={type}
       className={cn(buttonVariants({ variant, appearance, size, iconOnly }), className)}
       disabled={disabled || loading}
       aria-busy={loading ? 'true' : undefined}
