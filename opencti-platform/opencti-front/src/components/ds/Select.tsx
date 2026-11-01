@@ -138,7 +138,7 @@ export function SelectItem({ value, children }: SelectItemProps) {
   return (
     <BaseSelect.Item
       value={value}
-      className="relative flex items-center gap-2 rounded-[var(--radius-md)] ps-2 pe-6 py-1.5 cursor-pointer select-none data-[highlighted]:bg-[var(--accent)] data-[highlighted]:text-[var(--accent-foreground)]"
+      className="relative flex items-center gap-2 rounded-[var(--radius-md)] ps-2 pe-6 py-1.5 cursor-pointer select-none data-[highlighted]:bg-[var(--muted)] data-[highlighted]:text-[var(--foreground)]"
     >
       <BaseSelect.ItemText>{children}</BaseSelect.ItemText>
       <BaseSelect.ItemIndicator className="absolute end-2 flex items-center">
