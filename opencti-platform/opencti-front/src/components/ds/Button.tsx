@@ -56,9 +56,9 @@ type ButtonBaseProps = {
   loading?: boolean;
 } & ButtonHTMLAttributes<HTMLButtonElement>;
 
-export type ButtonProps =
-  | (ButtonBaseProps & { iconOnly?: false })
-  | (ButtonBaseProps & { iconOnly: true; 'aria-label': string });
+export type ButtonProps
+  = | (ButtonBaseProps & { iconOnly?: false })
+    | (ButtonBaseProps & { iconOnly: true; 'aria-label': string });
 
 export function Button({
   variant = 'primary',
