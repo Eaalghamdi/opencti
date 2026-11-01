@@ -1063,16 +1063,18 @@ import userEvent from '@testing-library/user-event';
 import { Sheet, SheetPopup, SheetTitle } from './Sheet';
 
 describe('Sheet', () => {
-  it('opens and closes like a dialog, and defaults to the inline-end side', async () => {
+  it('renders its content when open, and calls onOpenChange(false) on Escape', async () => {
     const onOpenChange = vi.fn();
-    const { container } = render(
-      <Sheet onOpenChange={onOpenChange}>
+    // Sheet.Root has no separate trigger prop in the spec's inventory — render it
+    // already open via `open` for this test instead of a trigger click.
+    render(
+      <Sheet open onOpenChange={onOpenChange}>
         <SheetPopup><SheetTitle>Filters</SheetTitle></SheetPopup>
       </Sheet>,
     );
-    // Sheet.Root in this design has no separate trigger prop in the spec's inventory —
-    // render it already open via `open` for this test instead of a trigger click.
-    expect(container).toBeDefined();
+    expect(screen.getByRole('dialog', { name: 'Filters' })).toBeInTheDocument();
+    await userEvent.keyboard('{Escape}');
+    expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
   it('positions at the inline-start edge when side="inline-start"', () => {
