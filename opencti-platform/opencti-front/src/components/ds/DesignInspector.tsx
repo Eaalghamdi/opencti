@@ -44,6 +44,8 @@ import {
   TooltipProvider,
 } from 'src/components/ds';
 
+const SELECT_EXAMPLE_ITEMS = { one: 'Option one', two: 'Option two', three: 'Option three' };
+
 /**
  * One labeled `<section>` per Foundation-phase primitive, modeled directly on
  * Policy Guardrail's own `src/app/design/page.tsx` (the visual target this whole
@@ -123,14 +125,14 @@ export function DesignInspector() {
         </Section>
 
         <Section title="Select (HUMAIN)">
-          <Select>
+          <Select items={SELECT_EXAMPLE_ITEMS}>
             <SelectTrigger className="max-w-xs" aria-label="Example select">
               <SelectValue placeholder="Pick an option" />
             </SelectTrigger>
             <SelectPopup>
-              <SelectItem value="one">Option one</SelectItem>
-              <SelectItem value="two">Option two</SelectItem>
-              <SelectItem value="three">Option three</SelectItem>
+              {Object.entries(SELECT_EXAMPLE_ITEMS).map(([value, label]) => (
+                <SelectItem key={value} value={value}>{label}</SelectItem>
+              ))}
             </SelectPopup>
           </Select>
         </Section>

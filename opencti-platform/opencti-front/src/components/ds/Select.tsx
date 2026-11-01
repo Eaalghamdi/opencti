@@ -7,6 +7,13 @@ export type SelectProps = {
   value?: string;
   defaultValue?: string;
   onValueChange?: (value: string) => void;
+  /**
+   * The items' display labels, keyed by value (or as `{ value, label }` pairs) - the
+   * same shape Base UI's `Select.Root` accepts. Without it, `SelectValue` can only show
+   * the raw selected value, since the popup (and with it each item's text) is not
+   * mounted while the select is closed.
+   */
+  items?: Record<string, ReactNode> | ReadonlyArray<{ value: string; label: ReactNode }>;
   children: ReactNode;
 };
 
@@ -37,13 +44,14 @@ export type SelectProps = {
 // Root's completion detection run first, against a still-mounted node.
 const SelectRenderContext = createContext(false);
 
-export function Select({ value, defaultValue, onValueChange, children }: SelectProps) {
+export function Select({ value, defaultValue, onValueChange, items, children }: SelectProps) {
   const [open, setOpen] = useState(false);
   const [rendered, setRendered] = useState(false);
   return (
     <BaseSelect.Root
       value={value}
       defaultValue={defaultValue}
+      items={items}
       open={open}
       onOpenChange={(nextOpen) => {
         setOpen(nextOpen);
@@ -88,12 +96,17 @@ export function SelectValue({ placeholder }: SelectValueProps) {
   // Base UI's Select.Value has no `placeholder` prop (it only exposes a
   // `placeholder: boolean` *state* for styling, via its `data-placeholder`
   // attribute) and its default rendering resolves an unset value to an empty
-  // string rather than placeholder text. We supply the children render-function
-  // instead to fall back to our own placeholder when nothing is selected yet.
+  // string rather than placeholder text. We override the rendered element (via
+  // `render`, not a children function) to fall back to our own placeholder when
+  // nothing is selected yet. A children function would receive only the raw value,
+  // bypassing Base UI's own value -> label resolution against Root's `items`;
+  // `render` instead receives that already-resolved label as `props.children`.
   return (
-    <BaseSelect.Value>
-      {(value: string | null) => value ?? placeholder}
-    </BaseSelect.Value>
+    <BaseSelect.Value
+      render={(props, state) => (
+        <span {...props}>{state.value == null ? placeholder : props.children}</span>
+      )}
+    />
   );
 }
 

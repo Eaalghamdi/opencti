@@ -26,6 +26,8 @@ describe('Select', () => {
     await userEvent.click(option);
     expect(onValueChange).toHaveBeenCalledWith('allow');
     expect(screen.queryByText('block')).not.toBeInTheDocument();
+    // Without `items`, the trigger falls back to showing the raw selected value.
+    expect(screen.getByRole('combobox', { name: 'Action' })).toHaveTextContent('allow');
   });
 
   it('is operable via keyboard: Enter opens, ArrowDown moves, Enter selects', async () => {
@@ -83,5 +85,47 @@ describe('Select', () => {
     await userEvent.click(trigger); // reopen
     const blockOption = await screen.findByText('block');
     expect(blockOption.closest('[role="option"]')).not.toHaveAttribute('data-highlighted');
+  });
+
+  // Base UI's Select.Value only knows an item's display label when `items` is set on
+  // Root; otherwise it shows the raw value. The tests above all use value === label,
+  // so this one uses distinct labels to prove the selected label is what's shown.
+  describe('with an items map whose labels differ from their values', () => {
+    const items = { allow: 'Allow all traffic', block: 'Block all traffic' };
+
+    function LabelledExample({ value }: { value?: string }) {
+      return (
+        <Select items={items} value={value}>
+          <SelectTrigger aria-label="Action">
+            <SelectValue placeholder="Pick action" />
+          </SelectTrigger>
+          <SelectPopup>
+            <SelectItem value="allow">Allow all traffic</SelectItem>
+            <SelectItem value="block">Block all traffic</SelectItem>
+          </SelectPopup>
+        </Select>
+      );
+    }
+
+    it('shows the placeholder until something is selected', () => {
+      render(<LabelledExample />);
+      expect(screen.getByRole('combobox', { name: 'Action' })).toHaveTextContent('Pick action');
+    });
+
+    it('shows the selected item\'s label, not its raw value, after selecting', async () => {
+      render(<LabelledExample />);
+      const trigger = screen.getByRole('combobox', { name: 'Action' });
+      await userEvent.click(trigger);
+      await userEvent.click(await screen.findByRole('option', { name: 'Allow all traffic' }));
+      expect(screen.queryByRole('option')).not.toBeInTheDocument();
+      expect(trigger).toHaveTextContent('Allow all traffic');
+      expect(trigger).not.toHaveTextContent(/^allow$/);
+      expect(trigger).not.toHaveTextContent('Pick action');
+    });
+
+    it('shows the label for a controlled value', () => {
+      render(<LabelledExample value="block" />);
+      expect(screen.getByRole('combobox', { name: 'Action' })).toHaveTextContent('Block all traffic');
+    });
   });
 });
