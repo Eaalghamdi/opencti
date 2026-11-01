@@ -25,7 +25,22 @@ describe('tokens.css', () => {
     expect(css).not.toMatch(/^\s*--radius-[\w-]+\s*:/m);
   });
 
-  it('imports tailwindcss', () => {
-    expect(css).toMatch(/@import\s+["']tailwindcss["']/);
+  // Assertions on @-rules run against the stylesheet with comments stripped, so
+  // that prose in the file's comments can't make them pass or fail.
+  const cssWithoutComments = css.replace(/\/\*[\s\S]*?\*\//g, '');
+
+  it('imports only Tailwind\'s theme and utilities layers', () => {
+    expect(cssWithoutComments).toMatch(/@import\s+["']tailwindcss\/theme\.css["']\s+layer\(theme\)/);
+    expect(cssWithoutComments).toMatch(/@import\s+["']tailwindcss\/utilities\.css["']\s+layer\(utilities\)/);
+  });
+
+  it('does not import Tailwind\'s preflight, which would restyle the existing app', () => {
+    expect(cssWithoutComments).not.toMatch(/@import\s+["']tailwindcss["']/);
+    expect(cssWithoutComments).not.toMatch(/preflight/);
+  });
+
+  it('limits Tailwind content scanning to this directory', () => {
+    expect(cssWithoutComments).toMatch(/source\(none\)/);
+    expect(cssWithoutComments).toMatch(/@source\s+["']\.\/["']/);
   });
 });
