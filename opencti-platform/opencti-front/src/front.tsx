@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import '@filigran/design-system/dist/index.css';
 import './static/css/index.css';
 import './static/css/custom-theme-tokens.css';
+import './components/ds/tokens.css';
 import './static/css/design-system-host.css';
 import { styled } from '@mui/material/styles';
 import { RelayEnvironmentProvider } from 'react-relay';

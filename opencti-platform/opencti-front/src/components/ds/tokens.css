@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+/*
+ * HUMAIN-DS-style token alias layer.
+ *
+ * These are new CSS custom property *names* that later tasks (3-15) consume via
+ * Tailwind arbitrary values (e.g. `bg-[var(--card)]`). They are deliberately not a new
+ * source of truth: wherever a Filigran design-system token already exists, we alias
+ * onto it with `var(--existing-name)` so that an admin's custom theme — applied
+ * dynamically at runtime by `useFdsThemeScope` onto `document.documentElement` — keeps
+ * driving these values automatically. Only tokens with no Filigran equivalent
+ * (the `-foreground` pairs for `primary`/`secondary`/`destructive`) are hand-picked.
+ *
+ * Source of truth for the right-hand side names: `src/components/fds-tokens.generated.ts`
+ * and `src/utils/hooks/useFdsThemeScope.ts`. Do not hardcode colors here; always alias.
+ */
+:root {
+  --background: var(--bg-elevation-default-layer-0);
+  --foreground: var(--text-default-primary);
+
+  --card: var(--bg-elevation-default-layer-1);
+  --card-foreground: var(--text-default-primary);
+
+  --popover: var(--bg-elevation-default-layer-2);
+  --popover-foreground: var(--text-default-primary);
+
+  --border: var(--border-elevation-default-layer-0);
+  --input-border: var(--border-elevation-default-layer-1);
+  --ring: var(--color-filigran-brand-primary);
+
+  --primary: var(--color-filigran-brand-primary);
+  --primary-foreground: #ffffff;
+
+  --secondary: var(--color-filigran-tonic-primary);
+  --secondary-foreground: #ffffff;
+
+  --muted: var(--bg-elevation-default-layer-1);
+  --muted-foreground: var(--text-default-secondary);
+
+  --destructive: var(--color-feedback-error-primary);
+  --destructive-foreground: #ffffff;
+
+  --success: var(--color-feedback-success-primary);
+  --warning: var(--color-feedback-warning-primary);
+  --info: var(--color-feedback-info-primary);
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-full: 9999px;
+}
