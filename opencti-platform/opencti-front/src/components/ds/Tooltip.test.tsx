@@ -16,4 +16,13 @@ describe('Tooltip', () => {
     await userEvent.unhover(screen.getByText('Hover me'));
     expect(screen.queryByText('Tooltip body')).not.toBeInTheDocument();
   });
+
+  it('merges trigger props onto the caller-supplied element instead of nesting a button inside one', () => {
+    const { container } = render(
+      <TooltipProvider>
+        <Tooltip trigger={<button>Hover me</button>} content="Tooltip body" />
+      </TooltipProvider>,
+    );
+    expect(container.querySelectorAll('button')).toHaveLength(1);
+  });
 });

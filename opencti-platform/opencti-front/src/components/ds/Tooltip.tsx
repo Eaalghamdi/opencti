@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { Tooltip as BaseTooltip } from '@base-ui-components/react/tooltip';
 import { cn } from './lib/cn';
 
@@ -14,7 +14,7 @@ export function TooltipProvider({ children }: { children: ReactNode }) {
 export function Tooltip({ trigger, content }: TooltipProps) {
   return (
     <BaseTooltip.Root>
-      <BaseTooltip.Trigger>{trigger}</BaseTooltip.Trigger>
+      <BaseTooltip.Trigger render={trigger as ReactElement} />
       <BaseTooltip.Portal>
         <BaseTooltip.Positioner>
           <BaseTooltip.Popup
