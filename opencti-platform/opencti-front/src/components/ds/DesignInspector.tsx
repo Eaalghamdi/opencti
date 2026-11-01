@@ -58,7 +58,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
       <h2 className="mb-4 font-mono text-xs uppercase tracking-wider text-[var(--muted-foreground)]">
         {title}
       </h2>
-      <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--card)] p-6">
+      <div className="rounded-[var(--ds-radius-md)] border border-[var(--border)] bg-[var(--card)] p-6">
         {children}
       </div>
     </section>
@@ -225,7 +225,7 @@ export function DesignInspector() {
         </Section>
 
         <Section title="Sidebar (HUMAIN)">
-          <div className="h-80 overflow-hidden rounded-[var(--radius-md)] border border-[var(--border)]">
+          <div className="h-80 overflow-hidden rounded-[var(--ds-radius-md)] border border-[var(--border)]">
             <SidebarProvider>
               <Sidebar>
                 <SidebarHeader>

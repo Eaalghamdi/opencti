@@ -61,7 +61,12 @@
   --warning: var(--color-feedback-warning-primary);
   --info: var(--color-feedback-info-primary);
 
-  --radius-sm: 0.25rem;
-  --radius-md: 0.5rem;
-  --radius-full: 9999px;
+  /*
+   * Radii are this library's own values, so they are `ds-`-namespaced: the
+   * Filigran design system already defines identically-named `--radius-*` tokens
+   * (with different values) that this unlayered, later-loaded file must not override.
+   */
+  --ds-radius-sm: 0.25rem;
+  --ds-radius-md: 0.5rem;
+  --ds-radius-full: 9999px;
 }

@@ -10,7 +10,7 @@ const TOKEN_NAMES = [
   'popover-foreground', 'border', 'input-border', 'ring', 'primary',
   'primary-foreground', 'secondary', 'secondary-foreground', 'muted',
   'muted-foreground', 'destructive', 'destructive-foreground', 'success',
-  'warning', 'info', 'radius-sm', 'radius-md', 'radius-full',
+  'warning', 'info', 'ds-radius-sm', 'ds-radius-md', 'ds-radius-full',
 ] as const;
 
 /**

@@ -3,7 +3,7 @@ import { cva } from 'class-variance-authority';
 import { cn } from './lib/cn';
 
 const badgeVariants = cva(
-  'inline-flex items-center gap-1.5 rounded-[var(--radius-full)] px-2.5 py-0.5 text-xs font-medium whitespace-nowrap',
+  'inline-flex items-center gap-1.5 rounded-[var(--ds-radius-full)] px-2.5 py-0.5 text-xs font-medium whitespace-nowrap',
   {
     variants: {
       variant: {
@@ -78,7 +78,7 @@ export function Badge({
   return (
     <span {...rest} className={cn(badgeVariants({ variant, color }), className)}>
       {variant === 'dot' && (
-        <span aria-hidden="true" className={cn('inline-block size-2 rounded-[var(--radius-full)]', dotColorClass[color])} />
+        <span aria-hidden="true" className={cn('inline-block size-2 rounded-[var(--ds-radius-full)]', dotColorClass[color])} />
       )}
       {children}
     </span>

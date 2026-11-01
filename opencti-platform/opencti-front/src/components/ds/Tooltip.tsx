@@ -19,7 +19,7 @@ export function Tooltip({ trigger, content }: TooltipProps) {
         <BaseTooltip.Positioner>
           <BaseTooltip.Popup
             className={cn(
-              'bg-[var(--popover)] text-[var(--popover-foreground)] border border-[var(--border)] rounded-[var(--radius-sm)] px-2 py-1 text-sm',
+              'bg-[var(--popover)] text-[var(--popover-foreground)] border border-[var(--border)] rounded-[var(--ds-radius-sm)] px-2 py-1 text-sm',
             )}
           >
             {content}

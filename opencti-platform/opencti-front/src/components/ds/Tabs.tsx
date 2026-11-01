@@ -24,7 +24,7 @@ export function Tabs({ defaultValue, value, onValueChange, children }: TabsProps
 export function TabsList({ className, ...rest }: HTMLAttributes<HTMLDivElement>) {
   return (
     <BaseTabs.List
-      className={cn('relative inline-flex rounded-[var(--radius-md)] bg-[var(--muted)] p-1', className)}
+      className={cn('relative inline-flex rounded-[var(--ds-radius-md)] bg-[var(--muted)] p-1', className)}
       {...rest}
     />
   );
@@ -37,7 +37,7 @@ export function TabsTrigger({ value, className, ...rest }: TabsTriggerProps) {
     <BaseTabs.Tab
       value={value}
       className={cn(
-        'relative z-10 inline-flex items-center justify-center rounded-[var(--radius-md)] px-3 py-1.5 text-sm font-medium text-[var(--muted-foreground)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] data-[active]:text-[var(--foreground)]',
+        'relative z-10 inline-flex items-center justify-center rounded-[var(--ds-radius-md)] px-3 py-1.5 text-sm font-medium text-[var(--muted-foreground)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] data-[active]:text-[var(--foreground)]',
         className,
       )}
       {...rest}
@@ -61,7 +61,7 @@ export function TabsIndicator({ className, ...rest }: HTMLAttributes<HTMLSpanEle
   return (
     <BaseTabs.Indicator
       className={cn(
-        'absolute z-0 rounded-[var(--radius-md)] bg-[var(--background)] shadow transition-all duration-200',
+        'absolute z-0 rounded-[var(--ds-radius-md)] bg-[var(--background)] shadow transition-all duration-200',
         // Physical left/top (not logical inset-inline-start/inset-block-start):
         // --active-tab-left/top/width/height are getBoundingClientRect-derived
         // physical measurements set by Base UI's TabsIndicator, already RTL-correct

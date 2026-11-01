@@ -32,14 +32,14 @@ export function Switch({
       disabled={disabled}
       onCheckedChange={(next) => onCheckedChange?.(next)}
       className={cn(
-        'relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-[var(--radius-full)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50 data-[checked]:bg-[var(--primary)] data-[unchecked]:bg-[var(--muted)]',
+        'relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-[var(--ds-radius-full)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50 data-[checked]:bg-[var(--primary)] data-[unchecked]:bg-[var(--muted)]',
         className,
       )}
       {...rest}
     >
       <BaseSwitch.Thumb
         className={cn(
-          'pointer-events-none absolute top-0.5 block size-5 rounded-[var(--radius-full)] bg-white shadow transition-[inset-inline-start]',
+          'pointer-events-none absolute top-0.5 block size-5 rounded-[var(--ds-radius-full)] bg-white shadow transition-[inset-inline-start]',
           // Logical (dir-aware) sliding position: resting flush with the inline-start
           // edge, sliding to the inline-end edge when checked. Using
           // `inset-inline-start` (not `translate-x`/`left`/`right`) means this flips

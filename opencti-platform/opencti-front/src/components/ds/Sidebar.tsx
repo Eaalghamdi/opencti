@@ -116,7 +116,7 @@ export function SidebarMenuButton({ isActive = false, className, ...rest }: Side
     <button
       type="button"
       className={cn(
-        'flex w-full items-center gap-2 rounded-[var(--radius-md)] px-3 py-2 text-sm transition-colors',
+        'flex w-full items-center gap-2 rounded-[var(--ds-radius-md)] px-3 py-2 text-sm transition-colors',
         isActive
           ? 'bg-[var(--muted)] font-medium text-[var(--foreground)]'
           : 'text-[var(--muted-foreground)] hover:bg-[var(--muted)]',

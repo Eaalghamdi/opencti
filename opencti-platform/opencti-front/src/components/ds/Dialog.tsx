@@ -34,7 +34,7 @@ export function DialogPopup({ className, children, ...props }: HTMLAttributes<HT
       <BaseDialog.Popup
         className={cn(
           'fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2',
-          'bg-[var(--card)] border border-[var(--border)] rounded-[var(--radius-md)] p-6',
+          'bg-[var(--card)] border border-[var(--border)] rounded-[var(--ds-radius-md)] p-6',
           className,
         )}
         {...props}

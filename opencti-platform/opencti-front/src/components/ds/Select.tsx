@@ -77,7 +77,7 @@ export function SelectTrigger({ className, children, ...rest }: SelectTriggerPro
   return (
     <BaseSelect.Trigger
       className={cn(
-        'inline-flex items-center justify-between gap-2 bg-[var(--card)] border border-[var(--input-border)] rounded-[var(--radius-md)] px-3 py-2 text-[var(--foreground)] focus-visible:outline-2 focus-visible:outline-[var(--ring)] disabled:opacity-50 disabled:cursor-not-allowed',
+        'inline-flex items-center justify-between gap-2 bg-[var(--card)] border border-[var(--input-border)] rounded-[var(--ds-radius-md)] px-3 py-2 text-[var(--foreground)] focus-visible:outline-2 focus-visible:outline-[var(--ring)] disabled:opacity-50 disabled:cursor-not-allowed',
         className,
       )}
       {...rest}
@@ -122,7 +122,7 @@ export function SelectPopup({ children }: SelectPopupProps) {
       <BaseSelect.Positioner>
         <BaseSelect.Popup
           className={cn(
-            'bg-[var(--popover)] text-[var(--popover-foreground)] border border-[var(--border)] rounded-[var(--radius-md)] p-1 text-sm',
+            'bg-[var(--popover)] text-[var(--popover-foreground)] border border-[var(--border)] rounded-[var(--ds-radius-md)] p-1 text-sm',
           )}
         >
           {children}
@@ -138,7 +138,7 @@ export function SelectItem({ value, children }: SelectItemProps) {
   return (
     <BaseSelect.Item
       value={value}
-      className="relative flex items-center gap-2 rounded-[var(--radius-md)] ps-2 pe-6 py-1.5 cursor-pointer select-none data-[highlighted]:bg-[var(--muted)] data-[highlighted]:text-[var(--foreground)]"
+      className="relative flex items-center gap-2 rounded-[var(--ds-radius-md)] ps-2 pe-6 py-1.5 cursor-pointer select-none data-[highlighted]:bg-[var(--muted)] data-[highlighted]:text-[var(--foreground)]"
     >
       <BaseSelect.ItemText>{children}</BaseSelect.ItemText>
       <BaseSelect.ItemIndicator className="absolute end-2 flex items-center">

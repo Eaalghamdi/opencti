@@ -16,9 +16,13 @@ describe('tokens.css', () => {
     '--popover-foreground', '--border', '--input-border', '--ring', '--primary',
     '--primary-foreground', '--secondary', '--secondary-foreground', '--muted',
     '--muted-foreground', '--destructive', '--destructive-foreground', '--success',
-    '--warning', '--info', '--radius-sm', '--radius-md', '--radius-full',
+    '--warning', '--info', '--ds-radius-sm', '--ds-radius-md', '--ds-radius-full',
   ])('defines %s', (token) => {
     expect(css).toContain(`${token}:`);
+  });
+
+  it('does not redefine the Filigran design system\'s own --radius-* tokens', () => {
+    expect(css).not.toMatch(/^\s*--radius-[\w-]+\s*:/m);
   });
 
   it('imports tailwindcss', () => {

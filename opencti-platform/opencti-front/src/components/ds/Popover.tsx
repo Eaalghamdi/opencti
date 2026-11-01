@@ -22,7 +22,7 @@ export function PopoverPopup({ className, children, ...props }: HTMLAttributes<H
       <BasePopover.Positioner>
         <BasePopover.Popup
           className={cn(
-            'bg-[var(--popover)] text-[var(--popover-foreground)] border border-[var(--border)] rounded-[var(--radius-md)] p-4 text-sm',
+            'bg-[var(--popover)] text-[var(--popover-foreground)] border border-[var(--border)] rounded-[var(--ds-radius-md)] p-4 text-sm',
             className,
           )}
           {...props}
