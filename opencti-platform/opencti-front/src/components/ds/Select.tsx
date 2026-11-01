@@ -16,22 +16,49 @@ export type SelectProps = {
 // registered..." effect - and never clears it. Once set, `Select.Portal` renders
 // unconditionally and the popup is only ever hidden via the `hidden` attribute
 // while closed, instead of being removed from the DOM the way this library's other
-// overlays (Popover/Dialog/Tooltip) are. We track `open` ourselves and gate the
-// portal on it, so a closed Select actually unmounts its popup, matching the rest
-// of this library's overlay contract.
-const SelectOpenContext = createContext(false);
+// overlays (Popover/Dialog/Tooltip) are. We track whether the popup should be in the
+// React tree ourselves (`rendered`) and gate `SelectPopup` on it, so a closed Select
+// actually unmounts its popup, matching the rest of this library's overlay contract.
+//
+// `rendered` is NOT simply "the open prop": it must flip to `true` synchronously
+// with `open` (on `onOpenChange`) so the popup mounts for Base UI's own open-tracking
+// to attach to, but it must only flip back to `false` from `onOpenChangeComplete`
+// (fired after `open` goes `false`), not from `onOpenChange` itself. Root's own
+// `useOpenChangeComplete` hook - which is what resets its *internal* store state
+// (`mounted`, `activeIndex`, `transitionStatus`) - runs in a passive `useEffect`,
+// strictly after the commit's synchronous ref-detach phase. If `SelectPopup`
+// unmounted (and nulled `popupRef`) as soon as `onOpenChange(false)` fired, that
+// effect would always find `popupRef.current === null` and Root's internal
+// `mounted`/`transitionStatus` would get stuck forever after the *first* close -
+// silently breaking a second open/close cycle and any future CSS enter/exit
+// transition added to `SelectPopup` (the same pattern `Sheet.tsx` already uses for
+// Dialog), which depends on `onOpenChangeComplete` firing correctly to know the exit
+// animation has finished. Deferring our own unmount to `onOpenChangeComplete` lets
+// Root's completion detection run first, against a still-mounted node.
+const SelectRenderContext = createContext(false);
 
 export function Select({ value, defaultValue, onValueChange, children }: SelectProps) {
   const [open, setOpen] = useState(false);
+  const [rendered, setRendered] = useState(false);
   return (
     <BaseSelect.Root
       value={value}
       defaultValue={defaultValue}
       open={open}
-      onOpenChange={setOpen}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (nextOpen) {
+          setRendered(true);
+        }
+      }}
+      onOpenChangeComplete={(completedOpen) => {
+        if (!completedOpen) {
+          setRendered(false);
+        }
+      }}
       onValueChange={(next) => onValueChange?.(next as string)}
     >
-      <SelectOpenContext.Provider value={open}>{children}</SelectOpenContext.Provider>
+      <SelectRenderContext.Provider value={rendered}>{children}</SelectRenderContext.Provider>
     </BaseSelect.Root>
   );
 }
@@ -73,8 +100,8 @@ export function SelectValue({ placeholder }: SelectValueProps) {
 export type SelectPopupProps = { children: ReactNode };
 
 export function SelectPopup({ children }: SelectPopupProps) {
-  const open = useContext(SelectOpenContext);
-  if (!open) {
+  const rendered = useContext(SelectRenderContext);
+  if (!rendered) {
     return null;
   }
   return (
