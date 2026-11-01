@@ -3,7 +3,7 @@ import { Tooltip as BaseTooltip } from '@base-ui-components/react/tooltip';
 import { cn } from './lib/cn';
 
 export type TooltipProps = {
-  trigger: ReactNode;
+  trigger: ReactElement<Record<string, unknown>>;
   content: ReactNode;
 };
 
@@ -14,7 +14,7 @@ export function TooltipProvider({ children }: { children: ReactNode }) {
 export function Tooltip({ trigger, content }: TooltipProps) {
   return (
     <BaseTooltip.Root>
-      <BaseTooltip.Trigger render={trigger as ReactElement} />
+      <BaseTooltip.Trigger render={trigger} />
       <BaseTooltip.Portal>
         <BaseTooltip.Positioner>
           <BaseTooltip.Popup

@@ -57,7 +57,7 @@ export function TabsContent({ value, className, ...rest }: TabsContentProps) {
   );
 }
 
-export function TabsIndicator({ className, ...rest }: HTMLAttributes<HTMLDivElement>) {
+export function TabsIndicator({ className, ...rest }: HTMLAttributes<HTMLSpanElement>) {
   return (
     <BaseTabs.Indicator
       className={cn(

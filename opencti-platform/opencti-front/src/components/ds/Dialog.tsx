@@ -19,8 +19,12 @@ export function Dialog({ children, open, onOpenChange }: DialogProps) {
   );
 }
 
-export function DialogTrigger({ children }: { children: ReactNode }) {
-  return <BaseDialog.Trigger render={children as ReactElement} />;
+export type DialogTriggerProps = {
+  children: ReactElement<Record<string, unknown>>;
+};
+
+export function DialogTrigger({ children }: DialogTriggerProps) {
+  return <BaseDialog.Trigger render={children} />;
 }
 
 export function DialogPopup({ className, children, ...props }: HTMLAttributes<HTMLDivElement>) {

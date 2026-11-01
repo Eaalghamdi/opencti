@@ -3,14 +3,14 @@ import { Popover as BasePopover } from '@base-ui-components/react/popover';
 import { cn } from './lib/cn';
 
 export type PopoverProps = {
-  trigger: ReactNode;
+  trigger: ReactElement<Record<string, unknown>>;
   children: ReactNode;
 };
 
 export function Popover({ trigger, children }: PopoverProps) {
   return (
     <BasePopover.Root>
-      <BasePopover.Trigger render={trigger as ReactElement} />
+      <BasePopover.Trigger render={trigger} />
       {children}
     </BasePopover.Root>
   );

@@ -7,7 +7,15 @@ export type SwitchProps = {
   defaultChecked?: boolean;
   onCheckedChange?: (checked: boolean) => void;
   disabled?: boolean;
-} & Omit<ComponentPropsWithoutRef<'button'>, 'onChange'>;
+  className?: string;
+  // Base UI's Switch.Root renders a <span> (plus a hidden <input>), not a <button>,
+  // so the pass-through props are typed against Switch.Root itself. The props this
+  // wrapper re-declares above (and `className`, which Base UI also allows as a
+  // state function) are omitted so ours take precedence.
+} & Omit<
+  ComponentPropsWithoutRef<typeof BaseSwitch.Root>,
+  'checked' | 'defaultChecked' | 'onCheckedChange' | 'disabled' | 'className' | 'children'
+>;
 
 export function Switch({
   checked,
