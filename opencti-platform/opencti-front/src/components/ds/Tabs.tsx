@@ -24,7 +24,7 @@ export function Tabs({ defaultValue, value, onValueChange, children }: TabsProps
 export function TabsList({ className, ...rest }: HTMLAttributes<HTMLDivElement>) {
   return (
     <BaseTabs.List
-      className={cn('inline-flex rounded-[var(--radius-md)] bg-[var(--muted)] p-1', className)}
+      className={cn('relative inline-flex rounded-[var(--radius-md)] bg-[var(--muted)] p-1', className)}
       {...rest}
     />
   );
@@ -37,7 +37,7 @@ export function TabsTrigger({ value, className, ...rest }: TabsTriggerProps) {
     <BaseTabs.Tab
       value={value}
       className={cn(
-        'relative z-0 inline-flex items-center justify-center rounded-[var(--radius-md)] px-3 py-1.5 text-sm font-medium text-[var(--muted-foreground)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] data-[selected]:text-[var(--foreground)]',
+        'relative z-10 inline-flex items-center justify-center rounded-[var(--radius-md)] px-3 py-1.5 text-sm font-medium text-[var(--muted-foreground)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] data-[selected]:text-[var(--foreground)]',
         className,
       )}
       {...rest}
@@ -61,7 +61,7 @@ export function TabsIndicator({ className, ...rest }: HTMLAttributes<HTMLDivElem
   return (
     <BaseTabs.Indicator
       className={cn(
-        'absolute z-[-1] rounded-[var(--radius-md)] bg-[var(--background)] shadow transition-all duration-200',
+        'absolute z-0 rounded-[var(--radius-md)] bg-[var(--background)] shadow transition-all duration-200',
         '[inset-inline-start:var(--active-tab-left)] [width:var(--active-tab-width)] [top:var(--active-tab-top)] [height:var(--active-tab-height)]',
         className,
       )}
