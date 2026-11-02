@@ -4,6 +4,7 @@ export * from './Kbd';
 export * from './Input';
 export * from './Textarea';
 export * from './Switch';
+export * from './Checkbox';
 export * from './Card';
 export * from './Tooltip';
 export * from './Popover';
