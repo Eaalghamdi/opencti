@@ -197,11 +197,14 @@ const AutocompleteField = <
   const getChipItemProps = useCallback<AutocompleteRenderValueGetItemProps<true>>(({ index }) => ({
     key: index,
     className: '',
-    disabled: false,
+    // Flows into `Tag`'s own `disabled` prop (forwarded to the library `Chip`,
+    // which disables its delete button) - a disabled multi-select must not leave
+    // its chips individually removable.
+    disabled: !!fieldProps.disabled,
     'data-item-index': index,
     tabIndex: -1,
     onDelete: () => removeValueAt(index),
-  }), [removeValueAt]);
+  }), [fieldProps.disabled, removeValueAt]);
 
   const handleValueChange = useCallback((next: unknown) => {
     internalOnChange(

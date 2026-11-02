@@ -78,6 +78,26 @@ describe('Component: AutocompleteField', () => {
     expect(screen.getByText('Beta')).toBeInTheDocument();
   });
 
+  it('multi-select: disables each chip\'s own delete button when the field itself is disabled', async () => {
+    const { user } = testRender(
+      <Formik initialValues={{ entities: [options[0], options[1]] }} onSubmit={() => {}}>
+        <Form>
+          <Field component={AutocompleteField} name="entities" multiple disabled options={options} />
+        </Form>
+      </Formik>,
+    );
+
+    const removeAlpha = screen.getByRole('button', { name: 'Remove Alpha' });
+    const removeBeta = screen.getByRole('button', { name: 'Remove Beta' });
+    expect(removeAlpha).toBeDisabled();
+    expect(removeBeta).toBeDisabled();
+
+    // Not just a disabled attribute: clicking it must not actually remove the chip
+    // (a native `disabled` button does not fire click handlers at all).
+    await user.click(removeAlpha);
+    expect(screen.getByText('Alpha')).toBeInTheDocument();
+  });
+
   it('shows the openCreate button when the prop is provided, and calls it on click', async () => {
     const openCreate = vi.fn();
     const { user } = testRender(
