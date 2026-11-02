@@ -69,4 +69,15 @@
   --ds-radius-sm: 0.25rem;
   --ds-radius-md: 0.5rem;
   --ds-radius-full: 9999px;
+
+  /*
+   * A perceptible marker for "this field is currently constraining/substituting
+   * the view", applied by a caller via a data attribute (e.g. `data-selected` on
+   * `ComboboxField`) rather than a per-component library prop - see
+   * fds-migration/MIGRATION-DECISIONS.md#field-state-tint for why the equivalent
+   * MUI `sx` tint was never built into the (external) Filigran design system.
+   * Aliases the same colour CustomViewPreviewEntitySelector previously reached
+   * via `theme.palette.designSystem.tertiary.orange[400]`.
+   */
+  --ds-tint-warning: var(--orange-400);
 }

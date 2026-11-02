@@ -1,8 +1,6 @@
-import React, { useState, FunctionComponent, SyntheticEvent } from 'react';
+import React, { FunctionComponent, useId, useState } from 'react';
 import { graphql } from 'react-relay';
-import type { SxProps } from '@mui/material';
-import Autocomplete from '@mui/material/Autocomplete';
-import TextField from '@mui/material/TextField';
+import { Combobox, ComboboxClear, ComboboxContent, ComboboxEmpty, ComboboxField, ComboboxInput, ComboboxItem, ComboboxLabel, ComboboxTrigger } from '../../../../../components/ds';
 import ItemIcon from '../../../../../components/ItemIcon';
 import { useFormatter } from '../../../../../components/i18n';
 import { fetchQuery } from '../../../../../relay/environment';
@@ -23,32 +21,6 @@ const customViewPreviewEntitySelectorQuery = graphql`
     }
   }
 `;
-
-// FDS-WORKAROUND #43: kept on MUI Autocomplete — the library field exposes no
-// per-state tint. Remove when it does; see fds-migration/LIBRARY-FEEDBACK.md #43
-// and fds-migration/MIGRATION-DECISIONS.md#field-state-tint
-const IN_PREVIEW_SX_PROPS: SxProps = {
-  '& .MuiOutlinedInput-root': {
-    '& fieldset': {
-      borderColor: 'designSystem.tertiary.orange.400',
-    },
-    '&:hover fieldset': {
-      borderColor: 'designSystem.tertiary.orange.400',
-    },
-    '&.Mui-focused fieldset': {
-      borderColor: 'designSystem.tertiary.orange.400',
-    },
-  },
-  '& label': {
-    color: 'designSystem.tertiary.orange.400',
-  },
-  '&:hover label': {
-    color: 'designSystem.tertiary.orange.400',
-  },
-  '&.Mui-focused label': {
-    color: 'designSystem.tertiary.orange.400',
-  },
-};
 
 const fetchOptions = async (type: string, search: string = '') => {
   const data = await fetchQuery(customViewPreviewEntitySelectorQuery, {
@@ -81,64 +53,62 @@ const CustomViewPreviewEntitySelector: FunctionComponent<CustomViewPreviewEntity
   onPreviewEntityChange,
 }) => {
   const { t_i18n } = useFormatter();
+  const inputId = useId();
   const [stixCoreObjects, setStixCoreObjects] = useState<PreviewEntityOption[]>([]);
   const [value, setValue] = useState<PreviewEntityOption | null>(null);
 
-  const searchStixCoreObjects = (_event: React.SyntheticEvent | null, newInputValue?: string) => {
-    fetchOptions(type, newInputValue).then((options) => {
+  const searchStixCoreObjects = (search: string = '') => {
+    fetchOptions(type, search).then((options) => {
       setStixCoreObjects([...options]);
     });
   };
 
-  const handleChange = (
-    _event: SyntheticEvent,
-    value: PreviewEntityOption | null,
-  ) => {
-    if (!value) {
-      setValue(null);
-      onPreviewEntityChange(null);
-      return;
-    }
-    setValue(value);
-    onPreviewEntityChange(value.value);
+  const handleValueChange = (next: PreviewEntityOption | null) => {
+    setValue(next);
+    onPreviewEntityChange(next ? next.value : null);
   };
+
+  // The field is "in preview" for as long as a substituted entity is selected -
+  // this is a product state signal on the field shell (see
+  // fds-migration/MIGRATION-DECISIONS.md#field-state-tint), expressed here via a
+  // data attribute this component owns plus the --ds-tint-warning token, now that
+  // the field is off MUI entirely rather than carried over as an `sx` object.
+  const isInPreview = value !== null;
 
   return (
     <div style={{ width: '100%', maxWidth: '500px' }}>
-      <Autocomplete
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            size="small"
-            hiddenLabel
-            variant="outlined"
-            label={t_i18n('Preview with current entity set to...')}
-          />
-        )}
-        sx={value ? IN_PREVIEW_SX_PROPS : undefined}
+      <ComboboxLabel
+        htmlFor={inputId}
+        style={isInPreview ? { color: 'var(--ds-tint-warning)' } : undefined}
+      >
+        {t_i18n('Preview with current entity set to...')}
+      </ComboboxLabel>
+      <Combobox
+        value={value}
+        onValueChange={handleValueChange}
         options={stixCoreObjects}
-        noOptionsText={t_i18n('No available options')}
+        getOptionLabel={(option) => option.label}
+        isOptionEqualToValue={(option, other) => option.value === other.value}
         onInputChange={searchStixCoreObjects}
-        onChange={handleChange}
-        onFocus={searchStixCoreObjects}
-        renderOption={(innerProps: React.HTMLAttributes<HTMLLIElement>, option: PreviewEntityOption) => {
-          return (
-            <li {...innerProps} key={option.value}>
-              <div style={{ paddingTop: 4, display: 'inline-block' }}>
-                <ItemIcon type={option.entityType} />
-              </div>
-              <div style={{
-                display: 'inline-block',
-                flexGrow: 1,
-                marginLeft: 10,
-              }}
-              >{option.label}
-              </div>
-            </li>
-          );
-        }}
-        isOptionEqualToValue={(option: PreviewEntityOption, value: PreviewEntityOption) => option.value === value.value}
-      />
+      >
+        <ComboboxField
+          data-selected={isInPreview ? 'true' : undefined}
+          style={isInPreview ? { borderColor: 'var(--ds-tint-warning)' } : undefined}
+        >
+          <ComboboxInput id={inputId} onFocus={() => searchStixCoreObjects('')} />
+          <ComboboxClear aria-label={t_i18n('Clear')} />
+          <ComboboxTrigger />
+        </ComboboxField>
+        <ComboboxContent>
+          <ComboboxEmpty>{t_i18n('No available options')}</ComboboxEmpty>
+          {stixCoreObjects.map((option) => (
+            <ComboboxItem key={option.value} value={option}>
+              <ItemIcon type={option.entityType} />
+              {option.label}
+            </ComboboxItem>
+          ))}
+        </ComboboxContent>
+      </Combobox>
     </div>
   );
 };
