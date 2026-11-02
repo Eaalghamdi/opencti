@@ -1,9 +1,7 @@
 import React from 'react';
-import { useTheme } from '@mui/material/styles';
 import DataTableWithoutFragmentToolBar from '@components/data/DataTableWithoutFragmentToolBar';
 import type { DataTableProps } from './dataTableTypes';
 import DataTableComponent from './components/DataTableComponent';
-import type { Theme } from '../Theme';
 import { useDataTableContext } from './components/DataTableContext';
 import type { LocalStorage } from '../../utils/hooks/useLocalStorageModel';
 
@@ -39,8 +37,6 @@ interface DataTableWithoutFragmentInternalToolBarProps {
 }
 
 const DataTableWithoutFragmentInternalToolbar = ({ taskScope, dataIds }: DataTableWithoutFragmentInternalToolBarProps) => {
-  const theme = useTheme<Theme>();
-
   const {
     useDataTableToggle: {
       selectedElements,
@@ -55,8 +51,10 @@ const DataTableWithoutFragmentInternalToolbar = ({ taskScope, dataIds }: DataTab
 
   return (
     <div
+      // Same "something is selected" tint as the selected row's own background in
+      // DataTableLine.tsx - both read ds/tokens.css's `--accent` alias, not theme.palette.
       style={{
-        background: theme.palette.background.accent,
+        background: 'var(--accent)',
         flex: 1,
       }}
     >

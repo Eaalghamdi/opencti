@@ -54,6 +54,10 @@
   --muted: var(--bg-elevation-default-layer-1);
   --muted-foreground: var(--text-default-secondary);
 
+  /* Same token `theme.palette.background.accent` (useFdsThemeScope's `accent`) resolves to -
+   * the "something in this view is selected" tint, stronger than `--muted`'s hover tint. */
+  --accent: var(--bg-elevation-default-layer-3);
+
   --destructive: var(--color-feedback-error-primary);
   --destructive-foreground: #ffffff;
 
