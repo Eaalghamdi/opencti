@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Combobox, ComboboxField, ComboboxInput, ComboboxTrigger, ComboboxContent, ComboboxItem } from './Combobox';
+import { Combobox, ComboboxField, ComboboxInput, ComboboxTrigger, ComboboxClear, ComboboxContent, ComboboxItem } from './Combobox';
 
 type Fruit = { label: string; value: string };
 
@@ -37,6 +38,7 @@ function Example({
     >
       <ComboboxField>
         <ComboboxInput aria-label="Fruit" />
+        <ComboboxClear aria-label="Clear" />
         <ComboboxTrigger />
       </ComboboxField>
       <ComboboxContent>
@@ -64,6 +66,33 @@ describe('Combobox', () => {
     const option = await screen.findByText('Banana');
     await userEvent.click(option);
     expect(onValueChange).toHaveBeenCalledWith(options[1]);
+  });
+
+  it('ComboboxClear resets the input text and selected value when clicked', async () => {
+    function ControlledExample() {
+      const [value, setValue] = useState<Fruit | null>(null);
+      return (
+        <Combobox value={value} onValueChange={setValue} options={options} getOptionLabel={(o) => o.label}>
+          <ComboboxField>
+            <ComboboxInput aria-label="Fruit" />
+            <ComboboxClear aria-label="Clear" />
+            <ComboboxTrigger />
+          </ComboboxField>
+          <ComboboxContent>
+            {options.map((o) => (
+              <ComboboxItem key={o.value} value={o}>{o.label}</ComboboxItem>
+            ))}
+          </ComboboxContent>
+        </Combobox>
+      );
+    }
+    render(<ControlledExample />);
+    await userEvent.click(screen.getByRole('combobox'));
+    await userEvent.click(await screen.findByText('Banana'));
+    expect(screen.getByRole('combobox')).toHaveValue('Banana');
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Clear' }));
+    expect(screen.getByRole('combobox')).toHaveValue('');
   });
 
   it('shows the Spinner while loading is true, even before the popup opens', () => {
