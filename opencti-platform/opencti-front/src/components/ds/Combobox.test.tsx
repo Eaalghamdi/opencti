@@ -105,6 +105,20 @@ describe('Combobox', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
+  it('ComboboxStatus announces "Loading..." to screen readers once the popup is open while loading', async () => {
+    render(<Example loading />);
+    await userEvent.click(screen.getByRole('combobox'));
+    const status = await screen.findByText('Loading...');
+    expect(status).toHaveAttribute('aria-live', 'polite');
+  });
+
+  it('ComboboxStatus has no announcement when not loading', async () => {
+    render(<Example />);
+    await userEvent.click(screen.getByRole('combobox'));
+    await screen.findByText('Banana');
+    expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+  });
+
   it('calls onInputChange as the user types, letting the caller own async filtering', async () => {
     const onInputChange = vi.fn();
     render(<Example onInputChange={onInputChange} />);

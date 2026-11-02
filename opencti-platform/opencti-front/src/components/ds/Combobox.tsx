@@ -211,11 +211,32 @@ export function ComboboxClear({ className, ...rest }: ComboboxClearProps) {
   );
 }
 
+export type ComboboxStatusProps = Omit<HTMLAttributes<HTMLDivElement>, 'children'> & { children?: ReactNode };
+
+// An `aria-live="polite"` region (role="status"/aria-atomic, set by Base UI's own
+// Combobox.Status) for announcing the state of an asynchronously loaded list to
+// screen readers - the a11y counterpart to the visual Spinner in ComboboxField.
+// Base UI's part is content-agnostic (it has no built-in notion of "loading"); this
+// wrapper defaults its announcement to "Loading..." while `loading` is true and
+// empty otherwise, but a caller can still override via `children` (e.g. to announce
+// a result count instead).
+export function ComboboxStatus({ className, children, ...rest }: ComboboxStatusProps) {
+  const { loading } = useContext(ComboboxContext);
+  return (
+    <BaseCombobox.Status className={cn('sr-only', className)} {...rest}>
+      {children ?? (loading ? 'Loading...' : null)}
+    </BaseCombobox.Status>
+  );
+}
+
 export type ComboboxContentProps = { children: ReactNode };
 
 // The listbox popup - mirrors ds/Select.tsx's SelectPopup token usage and
 // Portal/Positioner/Popup structure, gated on `rendered` for the same reason
-// SelectPopup is (see the comment on ComboboxContext above).
+// SelectPopup is (see the comment on ComboboxContext above). ComboboxStatus is
+// wired in here automatically (alongside List, where Empty is also expected to be
+// placed by the caller) so every Combobox announces its async loading state to
+// screen readers without every call site having to remember to add it.
 export function ComboboxContent({ children }: ComboboxContentProps) {
   const { rendered } = useContext(ComboboxContext);
   if (!rendered) {
@@ -229,6 +250,7 @@ export function ComboboxContent({ children }: ComboboxContentProps) {
             'bg-[var(--popover)] text-[var(--popover-foreground)] border border-[var(--border)] rounded-[var(--ds-radius-md)] p-1 text-sm',
           )}
         >
+          <ComboboxStatus />
           <BaseCombobox.List>{children}</BaseCombobox.List>
         </BaseCombobox.Popup>
       </BaseCombobox.Positioner>
