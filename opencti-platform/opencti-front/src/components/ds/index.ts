@@ -12,6 +12,7 @@ export * from './Sheet';
 export * from './Tabs';
 export * from './Select';
 export * from './Sidebar';
+export * from './Spinner';
 export * from './lib/cn';
 export * from './lib/useThemeMode';
 export * from './lib/useDesignTokens';
