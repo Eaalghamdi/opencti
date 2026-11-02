@@ -16,6 +16,7 @@ export * from './Sidebar';
 export * from './Spinner';
 export * from './Combobox';
 export * from './Menu';
+export * from './Pagination';
 export * from './lib/cn';
 export * from './lib/useThemeMode';
 export * from './lib/useDesignTokens';
