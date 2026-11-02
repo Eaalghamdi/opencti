@@ -254,8 +254,12 @@ describe('FilterValueInput with dashboard variables (date and free inputs)', () 
     const { user } = renderInput(buildFilter('revoked', 'eq'), { variables: [booleanVariable, numericVariable] });
     expect(fixedRadio()).toBeNull();
     await user.click(screen.getByRole('combobox'));
-    expect(screen.queryByRole('option', { name: 'Minimum score' })).toBeNull();
-    await user.click(await screen.findByRole('option', { name: 'Revoked only' }));
+    expect(screen.queryByText('Minimum score')).toBeNull();
+    // Clicking by visible text rather than accessible name: FilterEntityOption's own
+    // Checkbox carries an `aria-label` of its own, so the option's computed accessible
+    // name is not just its label text (see Combobox.test.tsx's own option-selection
+    // pattern, which does the same).
+    await user.click(await screen.findByText('Revoked only'));
     expect(helpers.handleAddRepresentationFilter).toHaveBeenCalledWith('filter-1', token(BOOLEAN_VARIABLE_ID));
   });
 });

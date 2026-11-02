@@ -96,11 +96,18 @@ describe('FilterEntityAutocomplete with dashboard variables', () => {
   };
 
   // The open list, read in display order: group headers and options, as the user sees them.
+  // `ComboboxContent` (ds/Combobox) always mounts its own `ComboboxStatus` aria-live region as
+  // the list's first child (announcing loading state to screen readers) - filtered out here,
+  // it carries no label/option text of its own. Everything else is either a `role="option"`
+  // item (FilterEntityAutocomplete manually inserts a plain group-header `<div>` - matching
+  // AutocompleteField.tsx's own grouping precedent - immediately before each run of options
+  // sharing a group, so it is exactly every other listbox child here) or that group header.
   const readOpenList = async (user: ReturnType<typeof testRender>['user']) => {
     await user.click(screen.getByRole('combobox'));
     const listbox = await screen.findByRole('listbox');
-    return Array.from(listbox.querySelectorAll('.MuiAutocomplete-groupLabel, li[role="option"]'))
-      .map((node) => (node.getAttribute('role') === 'option' ? node.getAttribute('aria-label') : `[${node.textContent}]`));
+    return Array.from(listbox.children)
+      .filter((node) => node.getAttribute('role') !== 'status')
+      .map((node) => (node.getAttribute('role') === 'option' ? node.textContent?.trim() : `[${node.textContent?.trim()}]`));
   };
 
   // The group of the searched entities is the translated filter label.
@@ -144,18 +151,20 @@ describe('FilterEntityAutocomplete with dashboard variables', () => {
   it('adds the variable token as a filter value when the variable is selected', async () => {
     const { user } = renderAutocomplete(buildFilter('objectLabel'), { variables: [labelVariable] });
     await user.click(screen.getByRole('combobox'));
-    await user.click(await screen.findByRole('option', { name: 'Client label' }));
+    // Matches Combobox.test.tsx's own option-selection pattern: click the option by its
+    // visible text rather than its accessible name, which here is contributed by more than
+    // one descendant (FilterEntityOption's own Checkbox carries an `aria-label` too).
+    await user.click(await screen.findByText('Client label'));
     expect(helpers.handleAddRepresentationFilter).toHaveBeenCalledWith('filter-1', `$var:${LABEL_VARIABLE_ID}`);
   });
 
   it('shows a selected token under the variable name, or as a deleted variable, never raw', () => {
-    renderAutocomplete(
+    const { container } = renderAutocomplete(
       buildFilter('objectLabel', [`$var:${LABEL_VARIABLE_ID}`, `$var:${DELETED_VARIABLE_ID}`]),
       { variables: [labelVariable] },
     );
-    const field = screen.getByRole('combobox').closest('.MuiAutocomplete-root') as HTMLElement;
-    expect(within(field).getByText('Client label')).toBeInTheDocument();
-    expect(within(field).getByText('Deleted variable')).toBeInTheDocument();
-    expect(field.textContent).not.toContain('$var:');
+    expect(within(container).getByText('Client label')).toBeInTheDocument();
+    expect(within(container).getByText('Deleted variable')).toBeInTheDocument();
+    expect(container.textContent).not.toContain('$var:');
   });
 });
