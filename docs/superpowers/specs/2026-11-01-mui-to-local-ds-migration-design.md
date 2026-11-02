@@ -217,6 +217,17 @@ Observed component API conventions to mirror locally:
   be preserved exactly — see Goal 6. Theming stays dynamic/GraphQL-driven at runtime.
 - Directionality-awareness (RTL-ready logical CSS properties) is built into every new
   primitive from the start — see Goal 7 — even though no RTL language is supported today.
+- Re-confirmed at the start of Phase 2 (2026-11-02): the `fds-migration/` constraint above
+  was investigated — it is real, on `master`, with `@filigran/design-system@1.3.0` actually
+  installed, 56 components already adopted (`libComponentUsage`), and a CI gate
+  (`check-mui-regression.mjs`) enforcing 17 component types, 7 of which overlap with
+  primitives this project already built (Button, Tooltip, Badge, Input, Textarea, Switch,
+  Select). The user's explicit choice is to keep building the local HUMAIN-DS library and
+  proceed as planned, accepting the duplication with `fds-migration`'s enforcement as a
+  known, deliberate tradeoff — not an oversight — in favor of brand/product consistency
+  with HUMAIN's own design system across its app suite (Policy Guardrail, etc.) rather than
+  Filigran's generic one. Phase 6 ("Cleanup") remains the point where `fds-migration`'s CI
+  gates get retired or repointed at the new local library.
 
 ## Left to the builder
 
@@ -272,3 +283,16 @@ Observed component API conventions to mirror locally:
   become available later (e.g. a teammate exports the real `styles.css`), the builder
   should swap them in without needing to redo component structure, since theming is
   isolated to CSS custom properties.
+
+## Known gaps for future work
+
+- **`ds/Combobox` multi-select closes its popup after a filtered selection.** When the
+  input sits outside the popup (every current call site), Base UI's own `AriaCombobox.js`
+  closes the popup on selection if the user had typed a filter first, even though
+  `ds/Combobox`'s `multiple` mode otherwise stays open across selections (matching MUI's
+  old `disableCloseOnSelect`). `ds/Combobox`'s `ComboboxProps` exposes no `open`/
+  `onOpenChange` escape hatch to override this. First hit migrating
+  `FilterEntityAutocomplete.tsx` (2026-11-02), where picking several options after typing a
+  search now takes an extra click per pick instead of staying open. A future `ds/Combobox`
+  enhancement should expose a way to keep the popup open across a filtered multi-select,
+  the way MUI's `disableCloseOnSelect` did.
