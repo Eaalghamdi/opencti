@@ -112,6 +112,29 @@ describe('DataTableHeader', () => {
     expect(handle.className).not.toContain('DataTableHeader-resizeHandle--dragging');
   });
 
+  it('uses logical CSS properties (RTL-ready), never physical left/right, in its inline styles', () => {
+    const { container } = renderHeader();
+    const handle = container.querySelector('.DataTableHeader-resizeHandle') as HTMLElement;
+    const sortButton = screen.getByText('Name').closest('button') as HTMLElement;
+
+    // The resize handle sits on the trailing edge via `insetInlineEnd`, not a hardcoded `right`,
+    // and its horizontal padding uses the inline-start/end pair, not left/right.
+    const handleStyle = handle.getAttribute('style') ?? '';
+    expect(handleStyle).toMatch(/inset-inline-end:\s*3px/);
+    expect(handleStyle).toMatch(/padding-inline-start:\s*4px/);
+    expect(handleStyle).toMatch(/padding-inline-end:\s*4px/);
+    expect(handleStyle).not.toMatch(/(?<![-\w])right\s*:/);
+    expect(handleStyle).not.toMatch(/padding-left\s*:/);
+    expect(handleStyle).not.toMatch(/padding-right\s*:/);
+
+    // The sort button's horizontal padding is also a logical inline-start/end pair.
+    const buttonStyle = sortButton.getAttribute('style') ?? '';
+    expect(buttonStyle).toMatch(/padding-inline-start:\s*8px/);
+    expect(buttonStyle).toMatch(/padding-inline-end:\s*8px/);
+    expect(buttonStyle).not.toMatch(/padding-left\s*:/);
+    expect(buttonStyle).not.toMatch(/padding-right\s*:/);
+  });
+
   it('any tooltip in this file uses ds/Tooltip, not a raw MUI Tooltip', async () => {
     // Static guard: the raw MUI import must be gone from the source, not just unused at runtime.
     const sourcePath = join(dirname(fileURLToPath(import.meta.url)), 'DataTableHeader.tsx');
