@@ -98,16 +98,23 @@ describe('FilterEntityAutocomplete with dashboard variables', () => {
   // The open list, read in display order: group headers and options, as the user sees them.
   // `ComboboxContent` (ds/Combobox) always mounts its own `ComboboxStatus` aria-live region as
   // the list's first child (announcing loading state to screen readers) - filtered out here,
-  // it carries no label/option text of its own. Everything else is either a `role="option"`
-  // item (FilterEntityAutocomplete manually inserts a plain group-header `<div>` - matching
-  // AutocompleteField.tsx's own grouping precedent - immediately before each run of options
-  // sharing a group, so it is exactly every other listbox child here) or that group header.
+  // it carries no label/option text of its own. Everything else is a `ComboboxGroup`
+  // (role="group") holding one contiguous run of same-group options under its header.
   const readOpenList = async (user: ReturnType<typeof testRender>['user']) => {
     await user.click(screen.getByRole('combobox'));
     const listbox = await screen.findByRole('listbox');
+    // Each group is a real `role="group"`, named by its header through aria-labelledby: the
+    // header is read as `[name]` through that association, then the group's own options.
     return Array.from(listbox.children)
       .filter((node) => node.getAttribute('role') !== 'status')
-      .map((node) => (node.getAttribute('role') === 'option' ? node.textContent?.trim() : `[${node.textContent?.trim()}]`));
+      .flatMap((node) => {
+        if (node.getAttribute('role') === 'option') return [node.textContent?.trim()];
+        expect(node).toHaveAttribute('role', 'group');
+        const labelId = node.getAttribute('aria-labelledby');
+        const header = labelId ? document.getElementById(labelId) : null;
+        const options = Array.from(node.querySelectorAll('[role="option"]')).map((option) => option.textContent?.trim());
+        return header ? [`[${header.textContent?.trim()}]`, ...options] : options;
+      });
   };
 
   // The group of the searched entities is the translated filter label.
@@ -151,11 +158,23 @@ describe('FilterEntityAutocomplete with dashboard variables', () => {
   it('adds the variable token as a filter value when the variable is selected', async () => {
     const { user } = renderAutocomplete(buildFilter('objectLabel'), { variables: [labelVariable] });
     await user.click(screen.getByRole('combobox'));
-    // Matches Combobox.test.tsx's own option-selection pattern: click the option by its
-    // visible text rather than its accessible name, which here is contributed by more than
-    // one descendant (FilterEntityOption's own Checkbox carries an `aria-label` too).
-    await user.click(await screen.findByText('Client label'));
+    await user.click(await screen.findByRole('option', { name: 'Client label' }));
     expect(helpers.handleAddRepresentationFilter).toHaveBeenCalledWith('filter-1', `$var:${LABEL_VARIABLE_ID}`);
+  });
+
+  it('names each option row by its label alone, with its checkbox inside it', async () => {
+    const { user } = renderAutocomplete(buildFilter('objectLabel', ['label-2']));
+    await user.click(screen.getByRole('combobox'));
+    // The option's own accessible name is exactly the label, not "<label> <label>" from the
+    // nested labelled Checkbox - the shape tests_e2e/model/filters.pageModel.ts relies on:
+    // `getByLabel(label, { exact: true }).getByRole('checkbox')`.
+    const option = await screen.findByRole('option', { name: 'APT' });
+    expect(option).toHaveAttribute('aria-label', 'APT');
+    expect(option).toHaveAttribute('aria-selected', 'true');
+    const labelled = screen.getAllByLabelText('APT', { exact: true });
+    expect(labelled).toContain(option);
+    const checkbox = within(option).getByRole('checkbox');
+    expect(checkbox).toBeChecked();
   });
 
   it('shows a selected token under the variable name, or as a deleted variable, never raw', () => {

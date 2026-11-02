@@ -1,8 +1,23 @@
-import { Fragment, useState, type ReactNode } from 'react';
+import { createRef, Fragment, useState, type ReactNode } from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Combobox, ComboboxField, ComboboxInput, ComboboxTrigger, ComboboxClear, ComboboxContent, ComboboxItem, ComboboxChips, ComboboxChip, ComboboxChipRemove } from './Combobox';
+import {
+  Combobox,
+  ComboboxField,
+  ComboboxInput,
+  ComboboxTrigger,
+  ComboboxClear,
+  ComboboxContent,
+  ComboboxItem,
+  ComboboxChips,
+  ComboboxChip,
+  ComboboxChipRemove,
+  ComboboxGroup,
+  ComboboxGroupLabel,
+  ComboboxHelperText,
+  ComboboxLabel,
+} from './Combobox';
 
 type Fruit = { label: string; value: string };
 
@@ -20,7 +35,7 @@ function Example({
   items = options,
 }: {
   onValueChange?: (value: Fruit | null) => void;
-  onInputChange?: (value: string) => void;
+  onInputChange?: (value: string, reason: string) => void;
   loading?: boolean;
   disabled?: boolean;
   value?: Fruit | null;
@@ -123,7 +138,7 @@ describe('Combobox', () => {
     const onInputChange = vi.fn();
     render(<Example onInputChange={onInputChange} />);
     await userEvent.type(screen.getByRole('combobox'), 'ban');
-    expect(onInputChange).toHaveBeenLastCalledWith('ban');
+    expect(onInputChange).toHaveBeenLastCalledWith('ban', 'input-change');
   });
 
   it('trusts options as-is (no extra local filtering) once onInputChange is supplied', async () => {
@@ -309,5 +324,232 @@ describe('Combobox multi-select', () => {
     await userEvent.keyboard('{Enter}');
     expect(screen.queryByText('Apple')).not.toBeInTheDocument();
     expect(screen.getByText('Banana')).toBeInTheDocument();
+  });
+});
+
+function SingleHarness({
+  value,
+  onValueChange = () => {},
+  onInputChange,
+  children,
+}: {
+  value: Fruit | null;
+  onValueChange?: (value: Fruit | null) => void;
+  onInputChange?: (value: string, reason: string) => void;
+  children?: ReactNode;
+}) {
+  return (
+    <Combobox value={value} onValueChange={onValueChange} options={options} getOptionLabel={(o) => o.label} onInputChange={onInputChange}>
+      <ComboboxField>
+        <ComboboxInput aria-label="Fruit" />
+        <ComboboxTrigger aria-label="Open" />
+      </ComboboxField>
+      <ComboboxContent>
+        {children ?? options.map((o) => (
+          <ComboboxItem key={o.value} value={o}>{o.label}</ComboboxItem>
+        ))}
+      </ComboboxContent>
+    </Combobox>
+  );
+}
+
+function ControlledSingle({ initial = null, onInputChange, onValueChange }: {
+  initial?: Fruit | null;
+  onInputChange?: (value: string, reason: string) => void;
+  onValueChange?: (value: Fruit | null) => void;
+}) {
+  const [value, setValue] = useState<Fruit | null>(initial);
+  return (
+    <SingleHarness
+      value={value}
+      onInputChange={onInputChange}
+      onValueChange={(next) => {
+        onValueChange?.(next);
+        setValue(next);
+      }}
+    />
+  );
+}
+
+describe('Combobox: typing, labelling, error state', () => {
+  it('ComboboxInput forwards its ref to the real <input>, and accepts native input attributes', () => {
+    const ref = createRef<HTMLInputElement>();
+    render(
+      <Combobox value={null} onValueChange={() => {}} options={options} getOptionLabel={(o) => o.label}>
+        <ComboboxField>
+          <ComboboxInput ref={ref} aria-label="Fruit" name="fruit" />
+        </ComboboxField>
+      </Combobox>,
+    );
+    expect(ref.current).toBe(screen.getByRole('combobox'));
+    expect(ref.current).toHaveAttribute('name', 'fruit');
+  });
+
+  it('ComboboxLabel accepts htmlFor and renders an aria-hidden required marker', () => {
+    render(
+      <Combobox value={null} onValueChange={() => {}} options={options} getOptionLabel={(o) => o.label}>
+        <ComboboxLabel htmlFor="fruit-input" required>Fruit</ComboboxLabel>
+        <ComboboxField>
+          <ComboboxInput id="fruit-input" required />
+        </ComboboxField>
+      </Combobox>,
+    );
+    expect(screen.getByRole('combobox', { name: 'Fruit' })).toBeRequired();
+    expect(screen.getByText('*')).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('ComboboxField and ComboboxHelperText carry a distinct error state', () => {
+    render(
+      <Combobox value={null} onValueChange={() => {}} options={options} getOptionLabel={(o) => o.label}>
+        <ComboboxField error data-testid="field">
+          <ComboboxInput aria-label="Fruit" aria-invalid aria-describedby="fruit-error" />
+        </ComboboxField>
+        <ComboboxHelperText id="fruit-error" error>Required field</ComboboxHelperText>
+        <ComboboxHelperText>Just a hint</ComboboxHelperText>
+      </Combobox>,
+    );
+    const field = screen.getByTestId('field');
+    expect(field).toHaveAttribute('data-invalid');
+    expect(field.className).toContain('data-[invalid]:border-[var(--destructive)]');
+    expect(screen.getByRole('combobox')).toHaveAccessibleDescription('Required field');
+    expect(screen.getByText('Required field').className).toContain('text-[var(--destructive)]');
+    expect(screen.getByText('Just a hint').className).toContain('text-[var(--muted-foreground)]');
+    expect(screen.getByText('Just a hint')).not.toHaveAttribute('data-invalid');
+  });
+
+  it('passes the real input-change reason through: typing is input-change, a single-select pick is item-press', async () => {
+    const onInputChange = vi.fn();
+    render(<ControlledSingle onInputChange={onInputChange} />);
+    await userEvent.type(screen.getByRole('combobox'), 'ba');
+    expect(onInputChange).toHaveBeenLastCalledWith('ba', 'input-change');
+    onInputChange.mockClear();
+    await userEvent.click(await screen.findByText('Banana'));
+    expect(onInputChange).toHaveBeenCalledWith('Banana', 'item-press');
+    expect(onInputChange).not.toHaveBeenCalledWith('Banana', 'input-change');
+  });
+
+  it('stays controlled when value starts out undefined: later value updates are reflected', () => {
+    const { rerender } = render(<SingleHarness value={undefined as unknown as Fruit | null} />);
+    expect(screen.getByRole('combobox')).toHaveValue('');
+    rerender(<SingleHarness value={options[1]} />);
+    expect(screen.getByRole('combobox')).toHaveValue('Banana');
+    rerender(<SingleHarness value={null} />);
+    expect(screen.getByRole('combobox')).toHaveValue('');
+  });
+});
+
+describe('Combobox: popup', () => {
+  it('stacks the popup above MUI modal hosts, and bounds it to a scrolling list matching the field width', async () => {
+    render(<SingleHarness value={null} />);
+    await userEvent.click(screen.getByRole('combobox'));
+    const listbox = await screen.findByRole('listbox');
+    // jsdom has no real stacking contexts: this asserts the overlay level is applied
+    // to the portaled positioner, not how a browser composites it.
+    expect(listbox.closest('[class*="z-[var(--fds-z-overlay,1400)]"]')).not.toBeNull();
+    const popup = listbox.parentElement as HTMLElement;
+    expect(popup.className).toContain('max-h-[min(var(--available-height),40vh)]');
+    expect(popup.className).toContain('overflow-y-auto');
+    expect(popup.className).toContain('w-[var(--anchor-width)]');
+  });
+
+  it('renders grouped options as ARIA groups named by their ComboboxGroupLabel', async () => {
+    render(
+      <SingleHarness value={null}>
+        <ComboboxGroup>
+          <ComboboxGroupLabel>Red</ComboboxGroupLabel>
+          <ComboboxItem value={options[0]}>{options[0].label}</ComboboxItem>
+        </ComboboxGroup>
+        <ComboboxGroup>
+          <ComboboxGroupLabel>Yellow</ComboboxGroupLabel>
+          <ComboboxItem value={options[1]}>{options[1].label}</ComboboxItem>
+        </ComboboxGroup>
+      </SingleHarness>,
+    );
+    await userEvent.click(screen.getByRole('combobox'));
+    const red = await screen.findByRole('group', { name: 'Red' });
+    const yellow = screen.getByRole('group', { name: 'Yellow' });
+    expect(red).toContainElement(screen.getByRole('option', { name: 'Apple' }));
+    expect(yellow).toContainElement(screen.getByRole('option', { name: 'Banana' }));
+  });
+
+  it('ComboboxItem accepts an aria-label and can hide its own selected indicator', async () => {
+    render(
+      <SingleHarness value={options[0]}>
+        <ComboboxItem value={options[0]} aria-label="Apple" hideIndicator>
+          <input type="checkbox" aria-label="Apple" checked readOnly />
+          Apple
+        </ComboboxItem>
+        <ComboboxItem value={options[1]}>Banana</ComboboxItem>
+      </SingleHarness>,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Open' }));
+    const apple = await screen.findByRole('option', { name: 'Apple' });
+    expect(apple).toHaveAttribute('aria-selected', 'true');
+    // Selected, but no check-mark indicator: the row's own checkbox is the cue.
+    expect(apple.querySelector('svg')).toBeNull();
+  });
+
+  it('shows the check-mark indicator on a selected item by default', async () => {
+    render(<SingleHarness value={options[0]} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Open' }));
+    const apple = await screen.findByRole('option', { name: 'Apple' });
+    expect(apple.querySelector('svg')).not.toBeNull();
+  });
+});
+
+describe('Combobox: keyboard clear-all', () => {
+  // Base UI's own ComboboxInput.js: Escape while the popup is closed clears the input
+  // and resets the selection to `null`/`[]` (reason `escape-key`). The mouse-only
+  // `ComboboxClear` stays out of the Tab order; this is its keyboard counterpart.
+  it('Escape with the popup closed clears a single-select', async () => {
+    const onValueChange = vi.fn();
+    render(<ControlledSingle initial={options[1]} onValueChange={onValueChange} />);
+    const input = screen.getByRole('combobox');
+    expect(input).toHaveValue('Banana');
+    input.focus();
+    await userEvent.keyboard('{Escape}');
+    expect(onValueChange).toHaveBeenLastCalledWith(null);
+    expect(input).toHaveValue('');
+  });
+
+  it('Escape with the popup closed clears every chip of a multi-select', async () => {
+    function ControlledMulti() {
+      const [value, setValue] = useState<Fruit[]>(options);
+      return (
+        <Combobox multiple value={value} onValueChange={setValue} options={options} getOptionLabel={(o) => o.label}>
+          <ComboboxField>
+            <ComboboxChips>
+              {value.map((fruit) => (
+                <ComboboxChip key={fruit.value}>{fruit.label}</ComboboxChip>
+              ))}
+            </ComboboxChips>
+            <ComboboxInput aria-label="Fruit" />
+          </ComboboxField>
+          <ComboboxContent>
+            {options.map((o) => (
+              <ComboboxItem key={o.value} value={o}>{o.label}</ComboboxItem>
+            ))}
+          </ComboboxContent>
+        </Combobox>
+      );
+    }
+    render(<ControlledMulti />);
+    expect(screen.getByText('Apple')).toBeInTheDocument();
+    screen.getByRole('combobox').focus();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByText('Apple')).not.toBeInTheDocument();
+    expect(screen.queryByText('Banana')).not.toBeInTheDocument();
+  });
+
+  it('Escape first closes an open popup, and only a second Escape clears the selection', async () => {
+    render(<ControlledSingle initial={options[1]} />);
+    const input = screen.getByRole('combobox');
+    await userEvent.click(screen.getByRole('button', { name: 'Open' }));
+    expect(await screen.findByRole('listbox')).toBeInTheDocument();
+    input.focus();
+    await userEvent.keyboard('{Escape}');
+    expect(input).toHaveValue('Banana');
+    await userEvent.keyboard('{Escape}');
+    expect(input).toHaveValue('');
   });
 });

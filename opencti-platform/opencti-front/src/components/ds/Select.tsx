@@ -119,7 +119,8 @@ export function SelectPopup({ children }: SelectPopupProps) {
   }
   return (
     <BaseSelect.Portal>
-      <BaseSelect.Positioner>
+      {/* Above MUI modal hosts (1300) - same overlay level and reason as ds/Combobox's popup. */}
+      <BaseSelect.Positioner className="z-[var(--fds-z-overlay,1400)]">
         <BaseSelect.Popup
           className={cn(
             'bg-[var(--popover)] text-[var(--popover-foreground)] border border-[var(--border)] rounded-[var(--ds-radius-md)] p-1 text-sm',

@@ -1,5 +1,5 @@
-import { createContext, useContext, useMemo, useState, type HTMLAttributes, type ReactNode } from 'react';
-import { Combobox as BaseCombobox } from '@base-ui-components/react/combobox';
+import { createContext, useContext, useMemo, useState, type ComponentPropsWithRef, type HTMLAttributes, type LabelHTMLAttributes, type ReactNode } from 'react';
+import { Combobox as BaseCombobox, type ComboboxRootChangeEventReason } from '@base-ui-components/react/combobox';
 import { Check, ChevronDown, X } from 'lucide-react';
 import { Spinner } from './Spinner';
 import { cn } from './lib/cn';
@@ -25,6 +25,12 @@ type ComboboxContextValue = {
   loading: boolean;
   visibleOptions: readonly unknown[];
   isOptionEqualToValue: (a: unknown, b: unknown) => boolean;
+  // The bordered `ComboboxField` box, registered by it on mount, so the popup can be
+  // anchored to (and width-matched against) the whole field rather than Base UI's
+  // default anchor, the bare `<input>` - which, beside chips and adornments, is only a
+  // fraction of the field's width.
+  fieldElement: HTMLElement | null;
+  setFieldElement: (element: HTMLElement | null) => void;
 };
 
 const ComboboxContext = createContext<ComboboxContextValue>({
@@ -32,7 +38,20 @@ const ComboboxContext = createContext<ComboboxContextValue>({
   loading: false,
   visibleOptions: [],
   isOptionEqualToValue: (a, b) => Object.is(a, b),
+  fieldElement: null,
+  setFieldElement: () => {},
 });
+
+/**
+ * Why the input text changed - Base UI's own change reason, passed through verbatim
+ * (see `ComboboxRoot.ChangeEventReason` in @base-ui-components/react). Only
+ * `'input-change'` is the user typing (or browser autofill); the input text also
+ * changes programmatically, e.g. `'item-press'` when a single-select fills the input
+ * with the picked item's label, `'input-clear'` when a multi-select empties it on
+ * close, `'clear-press'` for `ComboboxClear`, `'escape-key'` for an Escape-to-clear,
+ * and `'none'` when the input is re-synced to the selected value.
+ */
+export type ComboboxInputChangeReason = ComboboxRootChangeEventReason;
 
 export type ComboboxProps<T, Multiple extends boolean = false> = {
   value: Multiple extends true ? T[] : T | null;
@@ -45,8 +64,12 @@ export type ComboboxProps<T, Multiple extends boolean = false> = {
    * (typically an async/remote fetch): Combobox trusts `options` verbatim and does
    * not additionally substring-filter it. Without it, Combobox filters `options`
    * itself locally by `getOptionLabel`, matching a plain local-data autocomplete.
+   *
+   * It fires for every input-text change, not only typing: check `reason` (see
+   * `ComboboxInputChangeReason`) to tell real keystrokes (`'input-change'`) apart
+   * from the programmatic fills/clears Base UI performs on selection and close.
    */
-  onInputChange?: (value: string) => void;
+  onInputChange?: (value: string, reason: ComboboxInputChangeReason) => void;
   loading?: boolean;
   disabled?: boolean;
   /**
@@ -74,6 +97,7 @@ export function Combobox<T, Multiple extends boolean = false>({
   const [open, setOpen] = useState(false);
   const [rendered, setRendered] = useState(false);
   const [query, setQuery] = useState('');
+  const [fieldElement, setFieldElement] = useState<HTMLElement | null>(null);
 
   // Recomputed fresh from the current `options` prop on every render (never memoized
   // against a *previous* `options` reference) - Combobox must only ever render the
@@ -94,7 +118,18 @@ export function Combobox<T, Multiple extends boolean = false>({
     loading,
     visibleOptions,
     isOptionEqualToValue: (a, b) => isEqual(a as T, b as T),
-  }), [rendered, loading, visibleOptions, isEqual]);
+    fieldElement,
+    setFieldElement,
+  }), [rendered, loading, visibleOptions, isEqual, fieldElement]);
+
+  // Never hand Base UI an `undefined` value. Its `useControlled` hook decides
+  // controlled-vs-uncontrolled once, from the first render (`value !== undefined`),
+  // and never re-evaluates it - so a caller whose value merely starts out
+  // `undefined` (e.g. a Formik field with no key in `initialValues`) would lock the
+  // combobox into uncontrolled mode for good, silently ignoring every later
+  // `value` update (a `setFieldValue`, a form reset). `null`/`[]` mean the same
+  // "nothing selected" while keeping the combobox controlled.
+  const controlledValue = value ?? (multiple ? [] : null);
 
   return (
     <BaseCombobox.Root<T, Multiple>
@@ -107,10 +142,10 @@ export function Combobox<T, Multiple extends boolean = false>({
       // `Value | null`), but this component's public contract uses `null` for
       // "nothing selected" - a pre-existing convention from the single-select core
       // (see `ComboboxProps.value` above), unaffected by adding `multiple`. Runtime
-      // behavior is unchanged (Base UI treats `null`/`undefined` the same for "no
-      // selection"; the single-select tests above pass `value={null}` already); this
+      // behavior is unaffected (`null` is "no selection" to Base UI too - but unlike
+      // `undefined` it keeps the combobox controlled, see `controlledValue` above); this
       // cast only reconciles the narrower public type at the boundary.
-      value={value as unknown as (Multiple extends true ? T[] : T) | undefined}
+      value={controlledValue as unknown as (Multiple extends true ? T[] : T) | undefined}
       onValueChange={(next) => onValueChange(next as typeof value)}
       multiple={multiple}
       disabled={disabled}
@@ -126,9 +161,9 @@ export function Combobox<T, Multiple extends boolean = false>({
           setRendered(false);
         }
       }}
-      onInputValueChange={(nextQuery) => {
+      onInputValueChange={(nextQuery, eventDetails) => {
         setQuery(nextQuery);
-        onInputChange?.(nextQuery);
+        onInputChange?.(nextQuery, eventDetails.reason);
       }}
     >
       <ComboboxContext.Provider value={contextValue}>{children}</ComboboxContext.Provider>
@@ -136,29 +171,53 @@ export function Combobox<T, Multiple extends boolean = false>({
   );
 }
 
-export type ComboboxLabelProps = HTMLAttributes<HTMLLabelElement>;
+export type ComboboxLabelProps = LabelHTMLAttributes<HTMLLabelElement> & {
+  /**
+   * Appends a visual required marker (`*`) after the label text. The marker is
+   * `aria-hidden`: the requirement itself is conveyed to assistive technology by the
+   * input's own `required` attribute, so it is not announced twice. This mirrors the
+   * marker MUI's `TextField`/`FormLabel` rendered for a `required` field (the `ds`
+   * foundation's `Input`/`Select` have no label part, hence no prior convention).
+   * @default false
+   */
+  required?: boolean;
+};
 
-export function ComboboxLabel({ className, children, ...rest }: ComboboxLabelProps) {
+export function ComboboxLabel({ className, children, required = false, ...rest }: ComboboxLabelProps) {
   return (
     <label className={cn('block text-sm font-medium text-[var(--foreground)] mb-1', className)} {...rest}>
       {children}
+      {required && <span aria-hidden="true"> *</span>}
     </label>
   );
 }
 
-export type ComboboxFieldProps = HTMLAttributes<HTMLDivElement>;
+export type ComboboxFieldProps = HTMLAttributes<HTMLDivElement> & {
+  /**
+   * Marks the field invalid: the border switches to the `--destructive` token and the
+   * box carries `data-invalid`. Pair it with `aria-invalid` on `ComboboxInput` and
+   * `error` on `ComboboxHelperText` (the field box itself is presentational; the
+   * input is what assistive technology reads). The border also follows an
+   * `aria-invalid="true"` input on its own, matching `ds/Input`'s convention.
+   * @default false
+   */
+  error?: boolean;
+};
 
 // The bordered input container - equivalent to AutocompleteField's TextField box.
 // Houses Input/Trigger/Clear and, while `loading`, a trailing Spinner. The Spinner is
 // rendered here (not inside ComboboxContent/the popup) so it stays visible whether or
 // not the popup is open, matching MUI Autocomplete's loading affordance in its
-// TextField endAdornment.
-export function ComboboxField({ className, children, ...rest }: ComboboxFieldProps) {
-  const { loading } = useContext(ComboboxContext);
+// TextField endAdornment. It also registers itself as the popup's anchor (see
+// `ComboboxContent`).
+export function ComboboxField({ className, children, error = false, ...rest }: ComboboxFieldProps) {
+  const { loading, setFieldElement } = useContext(ComboboxContext);
   return (
     <div
+      ref={setFieldElement}
+      data-invalid={error ? '' : undefined}
       className={cn(
-        'inline-flex w-full items-center gap-2 bg-[var(--card)] border border-[var(--input-border)] rounded-[var(--ds-radius-md)] px-3 py-2 text-[var(--foreground)] focus-within:outline-2 focus-within:outline-[var(--ring)] has-[:disabled]:opacity-50 has-[:disabled]:cursor-not-allowed',
+        'inline-flex w-full items-center gap-2 bg-[var(--card)] border border-[var(--input-border)] rounded-[var(--ds-radius-md)] px-3 py-2 text-[var(--foreground)] focus-within:outline-2 focus-within:outline-[var(--ring)] has-[:disabled]:opacity-50 has-[:disabled]:cursor-not-allowed data-[invalid]:border-[var(--destructive)] has-[[aria-invalid=true]]:border-[var(--destructive)]',
         className,
       )}
       {...rest}
@@ -169,7 +228,13 @@ export function ComboboxField({ className, children, ...rest }: ComboboxFieldPro
   );
 }
 
-export type ComboboxInputProps = Omit<HTMLAttributes<HTMLInputElement>, 'children'>;
+// Base UI's own input props (every native `<input>` attribute - `id`, `name`,
+// `required`, `value`... - plus a forwarded `ref` to the real `<input>`, which React
+// 19 passes to a function component as an ordinary prop). `className` is narrowed to
+// the plain string this wrapper merges with its own classes; `render` is not exposed.
+export type ComboboxInputProps = Omit<ComponentPropsWithRef<typeof BaseCombobox.Input>, 'className' | 'render' | 'children'> & {
+  className?: string;
+};
 
 export function ComboboxInput({ className, ...rest }: ComboboxInputProps) {
   return (
@@ -327,17 +392,34 @@ export type ComboboxContentProps = { children: ReactNode };
 // wired in here automatically (alongside List, where Empty is also expected to be
 // placed by the caller) so every Combobox announces its async loading state to
 // screen readers without every call site having to remember to add it.
+//
+// Stacking: Base UI's Positioner sets no `z-index` of its own, and this popup is
+// portaled to <body> - so without one it paints *behind* every MUI modal host
+// (Popover 1300, Dialog/Drawer 1300) that a combobox commonly lives inside (filter
+// chip popovers, creation drawers/dialogs). It takes the host's library-overlay level,
+// `--fds-z-overlay` (design-system-host.css - set to 1400, above every MUI modal
+// level, for exactly this case), with the same 1400 as a fallback where that sheet is
+// not loaded.
+//
+// Sizing: anchored to the whole `ComboboxField` box (registered via context) rather
+// than Base UI's default anchor, the bare `<input>`, so `--anchor-width` - one of the
+// CSS variables Base UI's positioner sets on itself (ComboboxPositionerCssVars.js:
+// --anchor-width, --available-height, ...) and which the popup inherits - is the
+// field's width, as MUI's popper matched it. The height is capped at the space
+// actually available below/above the anchor (and at 40vh, MUI's listbox cap), with
+// the list scrolling inside: async callers fetch up to 100 options at once.
 export function ComboboxContent({ children }: ComboboxContentProps) {
-  const { rendered } = useContext(ComboboxContext);
+  const { rendered, fieldElement } = useContext(ComboboxContext);
   if (!rendered) {
     return null;
   }
   return (
     <BaseCombobox.Portal>
-      <BaseCombobox.Positioner>
+      <BaseCombobox.Positioner anchor={fieldElement ?? undefined} sideOffset={4} className="z-[var(--fds-z-overlay,1400)]">
         <BaseCombobox.Popup
           className={cn(
             'bg-[var(--popover)] text-[var(--popover-foreground)] border border-[var(--border)] rounded-[var(--ds-radius-md)] p-1 text-sm',
+            'w-[var(--anchor-width)] max-h-[min(var(--available-height),40vh)] overflow-y-auto overscroll-contain',
           )}
         >
           <ComboboxStatus />
@@ -348,9 +430,27 @@ export function ComboboxContent({ children }: ComboboxContentProps) {
   );
 }
 
-export type ComboboxItemProps<T> = { value: T; disabled?: boolean; children: ReactNode };
+export type ComboboxItemProps<T> = {
+  value: T;
+  disabled?: boolean;
+  children: ReactNode;
+  /**
+   * The option's accessible name, when its content alone would not give a clean one -
+   * e.g. a row whose content nests its own labelled control (a checkbox), which would
+   * otherwise make the option's name the concatenation of that control's label and
+   * the visible text.
+   */
+  'aria-label'?: string;
+  /**
+   * Omits the trailing selected-state check mark. For rows whose content already
+   * carries its own selected affordance (e.g. a checkbox), so the selection is not
+   * shown twice. The option's `aria-selected` is unaffected.
+   * @default false
+   */
+  hideIndicator?: boolean;
+};
 
-export function ComboboxItem<T>({ value, disabled, children }: ComboboxItemProps<T>) {
+export function ComboboxItem<T>({ value, disabled, children, 'aria-label': ariaLabel, hideIndicator = false }: ComboboxItemProps<T>) {
   const { visibleOptions, isOptionEqualToValue } = useContext(ComboboxContext);
   // Base UI never hides statically-authored `<Combobox.Item>` children on its own
   // (confirmed by reading ComboboxItem.js/ComboboxList.js: filtering only affects its
@@ -365,13 +465,47 @@ export function ComboboxItem<T>({ value, disabled, children }: ComboboxItemProps
     <BaseCombobox.Item
       value={value}
       disabled={disabled}
-      className="relative flex items-center gap-2 rounded-[var(--ds-radius-md)] ps-2 pe-6 py-1.5 cursor-pointer select-none data-[highlighted]:bg-[var(--muted)] data-[highlighted]:text-[var(--foreground)] data-[disabled]:opacity-50 data-[disabled]:cursor-not-allowed"
+      aria-label={ariaLabel}
+      className={cn(
+        'relative flex items-center gap-2 rounded-[var(--ds-radius-md)] ps-2 py-1.5 cursor-pointer select-none data-[highlighted]:bg-[var(--muted)] data-[highlighted]:text-[var(--foreground)] data-[disabled]:opacity-50 data-[disabled]:cursor-not-allowed',
+        hideIndicator ? 'pe-2' : 'pe-6',
+      )}
     >
       {children}
-      <BaseCombobox.ItemIndicator className="absolute end-2 flex items-center">
-        <Check className="size-4" />
-      </BaseCombobox.ItemIndicator>
+      {!hideIndicator && (
+        <BaseCombobox.ItemIndicator className="absolute end-2 flex items-center">
+          <Check className="size-4" />
+        </BaseCombobox.ItemIndicator>
+      )}
     </BaseCombobox.Item>
+  );
+}
+
+export type ComboboxGroupProps = Omit<HTMLAttributes<HTMLDivElement>, 'children'> & { children: ReactNode };
+
+// A group of options under one `ComboboxGroupLabel` - Base UI's own `Combobox.Group`
+// (role="group", aria-labelledby pointing at its label's generated id), so assistive
+// technology announces each option together with the group it belongs to. Place
+// `ComboboxItem`s inside it in the same order as the `options` handed to `Combobox`:
+// Base UI indexes items by document order for keyboard navigation.
+export function ComboboxGroup({ className, children, ...rest }: ComboboxGroupProps) {
+  return (
+    <BaseCombobox.Group className={className} {...rest}>
+      {children}
+    </BaseCombobox.Group>
+  );
+}
+
+export type ComboboxGroupLabelProps = Omit<HTMLAttributes<HTMLDivElement>, 'children'> & { children: ReactNode };
+
+export function ComboboxGroupLabel({ className, children, ...rest }: ComboboxGroupLabelProps) {
+  return (
+    <BaseCombobox.GroupLabel
+      className={cn('px-2 py-1.5 text-xs font-medium text-[var(--muted-foreground)]', className)}
+      {...rest}
+    >
+      {children}
+    </BaseCombobox.GroupLabel>
   );
 }
 
@@ -385,11 +519,23 @@ export function ComboboxEmpty({ children }: ComboboxEmptyProps) {
   );
 }
 
-export type ComboboxHelperTextProps = HTMLAttributes<HTMLParagraphElement>;
+export type ComboboxHelperTextProps = HTMLAttributes<HTMLParagraphElement> & {
+  /**
+   * Renders the text as a validation error, in the `--destructive` token rather than
+   * the muted helper color. Give it an `id` and reference that from the input's
+   * `aria-describedby` so the message is read with the field.
+   * @default false
+   */
+  error?: boolean;
+};
 
-export function ComboboxHelperText({ className, children, ...rest }: ComboboxHelperTextProps) {
+export function ComboboxHelperText({ className, children, error = false, ...rest }: ComboboxHelperTextProps) {
   return (
-    <p className={cn('text-xs text-[var(--muted-foreground)] mt-1', className)} {...rest}>
+    <p
+      data-invalid={error ? '' : undefined}
+      className={cn('text-xs mt-1', error ? 'text-[var(--destructive)]' : 'text-[var(--muted-foreground)]', className)}
+      {...rest}
+    >
       {children}
     </p>
   );

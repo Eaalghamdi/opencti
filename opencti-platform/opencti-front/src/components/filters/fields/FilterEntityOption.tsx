@@ -17,7 +17,9 @@ interface FilterEntityOptionProps {
  * (role="option", aria-selected, aria-disabled, the disabled/pointer-events behavior) - this
  * component only supplies what goes inside it, the same "library owns the row, caller supplies
  * content" split AutocompleteField.tsx's own renderOptionContent uses for its MUI-style
- * renderOption adapter.
+ * renderOption adapter. Its `ComboboxItem` (in FilterEntityAutocomplete) therefore takes
+ * `aria-label={option.label}` - the row's name, not "<label> <label>" from this checkbox's
+ * own label plus the text - and `hideIndicator`, this checkbox being the row's selected cue.
  */
 const FilterEntityOption: FunctionComponent<FilterEntityOptionProps> = ({
   option,

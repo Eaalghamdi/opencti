@@ -1,6 +1,6 @@
 import React from 'react';
 import { screen } from '@testing-library/react';
-import { Field, Form, Formik } from 'formik';
+import { Field, Form, Formik, useFormikContext } from 'formik';
 import * as Yup from 'yup';
 import { describe, expect, it, vi } from 'vitest';
 import AutocompleteField from './AutocompleteField';
@@ -140,5 +140,196 @@ describe('Component: AutocompleteField', () => {
     await user.click(screen.getByRole('button', { name: 'Submit' }));
     expect(await screen.findByText('Required field')).toBeInTheDocument();
     expect(screen.queryByText('Pick one')).not.toBeInTheDocument();
+  });
+
+  it('marks the error state on the input (aria-invalid, aria-describedby) and the helper text', async () => {
+    const schema = Yup.object().shape({
+      entity: Yup.mixed().required('Required field'),
+    });
+    const { user } = testRender(
+      <Formik initialValues={{ entity: null }} validationSchema={schema} onSubmit={() => {}}>
+        <Form noValidate>
+          <Field
+            component={AutocompleteField}
+            name="entity"
+            options={options}
+            textfieldprops={{ label: 'Entity', helperText: 'Pick one' }}
+          />
+          <button type="submit">Submit</button>
+        </Form>
+      </Formik>,
+    );
+
+    const input = screen.getByRole('combobox', { name: 'Entity' });
+    expect(input).not.toHaveAttribute('aria-invalid');
+    expect(input).toHaveAccessibleDescription('Pick one');
+
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+    await screen.findByText('Required field');
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(input).toHaveAccessibleDescription('Required field');
+    expect(screen.getByText('Required field')).toHaveAttribute('data-invalid');
+  });
+
+  it('required: sets the native required attribute and shows a required marker on the label', () => {
+    testRender(
+      <Formik initialValues={{ entity: null }} onSubmit={() => {}}>
+        <Form>
+          <Field component={AutocompleteField} name="entity" options={options} required textfieldprops={{ label: 'Entity' }} />
+        </Form>
+      </Formik>,
+    );
+    const input = screen.getByRole('combobox', { name: 'Entity' });
+    expect(input).toHaveAttribute('required');
+    expect(screen.getByText('*')).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('required multi-select: drops the native constraint once a value is selected, since the search input stays empty', () => {
+    testRender(
+      <Formik initialValues={{ entities: [options[0]] }} onSubmit={() => {}}>
+        <Form>
+          <Field component={AutocompleteField} name="entities" multiple options={options} required textfieldprops={{ label: 'Entities' }} />
+        </Form>
+      </Formik>,
+    );
+    const input = screen.getByRole('combobox', { name: 'Entities' });
+    // (jest-dom's toBeRequired also counts aria-required, hence the attribute check.)
+    expect(input).not.toHaveAttribute('required');
+    expect(input).toHaveAttribute('aria-required', 'true');
+  });
+
+  it('applies style/className to the whole field, so the label stays attached to its box', () => {
+    testRender(
+      <Formik initialValues={{ entity: null }} onSubmit={() => {}}>
+        <Form>
+          <Field
+            component={AutocompleteField}
+            name="entity"
+            options={options}
+            style={{ marginTop: 20 }}
+            className="custom-field"
+            textfieldprops={{ label: 'Entity' }}
+          />
+        </Form>
+      </Formik>,
+    );
+    const label = screen.getByText('Entity');
+    const styled = label.closest('.custom-field') as HTMLElement;
+    expect(styled).not.toBeNull();
+    expect(styled.style.marginTop).toBe('20px');
+    // The margin sits outside the label + box pair, never between them: the bordered box
+    // (the input's own container) carries none of it.
+    const input = screen.getByRole('combobox');
+    expect(styled).toContainElement(input);
+    expect((input.parentElement as HTMLElement).style.marginTop).toBe('');
+  });
+
+  it('reflects a later setFieldValue when the Formik key starts out missing (undefined)', async () => {
+    function SetLater() {
+      const { setFieldValue } = useFormikContext<Record<string, unknown>>();
+      return <button type="button" onClick={() => setFieldValue('entity', options[1])}>Set Beta</button>;
+    }
+    const { user } = testRender(
+      <Formik initialValues={{} as Record<string, unknown>} onSubmit={() => {}}>
+        <Form>
+          <Field component={AutocompleteField} name="entity" options={options} />
+          <SetLater />
+        </Form>
+      </Formik>,
+    );
+    const input = screen.getByRole('combobox');
+    expect(input).toHaveValue('');
+    await user.click(screen.getByRole('button', { name: 'Set Beta' }));
+    expect(input).toHaveValue('Beta');
+  });
+
+  it('renders groupBy runs as ARIA groups named by their header', async () => {
+    const grouped: FieldOption[] = [
+      { label: 'Alpha', value: 'alpha', type: 'Malware' } as FieldOption,
+      { label: 'Beta', value: 'beta', type: 'Malware' } as FieldOption,
+      { label: 'Gamma', value: 'gamma', type: 'Tool' } as FieldOption,
+    ];
+    const { user } = testRender(
+      <Formik initialValues={{ entity: null }} onSubmit={() => {}}>
+        <Form>
+          <Field
+            component={AutocompleteField}
+            name="entity"
+            options={grouped}
+            groupBy={(option: FieldOption & { type: string }) => option.type}
+          />
+        </Form>
+      </Formik>,
+    );
+    await user.click(screen.getByRole('combobox'));
+    const malware = await screen.findByRole('group', { name: 'Malware' });
+    const tool = screen.getByRole('group', { name: 'Tool' });
+    expect(malware).toContainElement(screen.getByRole('option', { name: 'Alpha' }));
+    expect(malware).toContainElement(screen.getByRole('option', { name: 'Beta' }));
+    expect(tool).toContainElement(screen.getByRole('option', { name: 'Gamma' }));
+  });
+});
+
+// Regression guard for StixCoreObjectsField's search-to-create flow: it remembers what
+// the user searched for ONLY on an `'input'` reason (searchStixCoreObjects), and that term
+// pre-fills the name of the entity created through its synthetic "Create X" option. The
+// input text also changes programmatically when an option is picked - Base UI fills it
+// with the picked label (single-select) or empties it on close (multi-select) - and
+// neither of those may be reported as `'input'`.
+describe('Component: AutocompleteField onInputChange reasons (search-to-create)', () => {
+  const createOption: FieldOption = { label: 'Create Malware', value: 'create-new' };
+
+  function SearchToCreateHarness({ multiple = false }: { multiple?: boolean }) {
+    const [searchTerm, setSearchTerm] = React.useState('');
+    // Same branching as StixCoreObjectsField's searchStixCoreObjects.
+    const searchStixCoreObjects = (_event: React.SyntheticEvent | null, newInputValue?: string, reason?: string) => {
+      if (reason === 'input' || reason === undefined) {
+        setSearchTerm(newInputValue ?? '');
+      }
+    };
+    return (
+      <Formik initialValues={{ entity: multiple ? [] : null }} onSubmit={() => {}}>
+        <Form>
+          <Field
+            component={AutocompleteField}
+            name="entity"
+            multiple={multiple}
+            options={[...options, createOption]}
+            onInputChange={searchStixCoreObjects}
+            textfieldprops={{ label: 'Entity', onFocus: searchStixCoreObjects }}
+          />
+          <output data-testid="search-term">{searchTerm}</output>
+        </Form>
+      </Formik>
+    );
+  }
+
+  it('single-select: picking the create option keeps the typed search term, not the option label', async () => {
+    const { user } = testRender(<SearchToCreateHarness />);
+    await user.type(screen.getByRole('combobox'), 'mal');
+    expect(screen.getByTestId('search-term')).toHaveTextContent('mal');
+
+    await user.click(await screen.findByText('Create Malware'));
+    expect(screen.getByTestId('search-term')).toHaveTextContent(/^mal$/);
+  });
+
+  it('multi-select: picking the create option keeps the typed search term, not an emptied input', async () => {
+    const { user } = testRender(<SearchToCreateHarness multiple />);
+    await user.type(screen.getByRole('combobox'), 'mal');
+    await user.click(await screen.findByText('Create Malware'));
+    expect(screen.getByTestId('search-term')).toHaveTextContent(/^mal$/);
+  });
+
+  it('typing still reports an input reason', async () => {
+    const onInputChange = vi.fn();
+    const { user } = testRender(
+      <Formik initialValues={{ entity: null }} onSubmit={() => {}}>
+        <Form>
+          <Field component={AutocompleteField} name="entity" options={options} onInputChange={onInputChange} />
+        </Form>
+      </Formik>,
+    );
+    await user.type(screen.getByRole('combobox'), 'al');
+    expect(onInputChange).toHaveBeenLastCalledWith(undefined, 'al', 'input');
   });
 });

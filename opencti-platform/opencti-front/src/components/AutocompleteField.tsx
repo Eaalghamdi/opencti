@@ -1,7 +1,7 @@
 import React, { ReactNode, useCallback, useId } from 'react';
 import IconButton from '@common/button/IconButton';
 import { Add } from '@mui/icons-material';
-import { AutocompleteProps, AutocompleteRenderValue, AutocompleteRenderValueGetItemProps, AutocompleteValue, TextFieldProps } from '@mui/material';
+import { AutocompleteInputChangeReason, AutocompleteProps, AutocompleteRenderValue, AutocompleteRenderValueGetItemProps, AutocompleteValue, TextFieldProps } from '@mui/material';
 import { FieldProps, useField } from 'formik';
 import { FieldOption } from '../utils/field';
 import { truncate } from '../utils/String';
@@ -17,8 +17,11 @@ import {
   ComboboxContent,
   ComboboxEmpty,
   ComboboxField,
+  ComboboxGroup,
+  ComboboxGroupLabel,
   ComboboxHelperText,
   ComboboxInput,
+  type ComboboxInputChangeReason,
   ComboboxItem,
   ComboboxLabel,
   ComboboxTrigger,
@@ -59,7 +62,7 @@ type ErasedComboboxProps<Value> = {
   options: Value[];
   getOptionLabel: (option: Value) => string;
   isOptionEqualToValue?: (a: Value, b: Value) => boolean;
-  onInputChange?: (value: string) => void;
+  onInputChange?: (value: string, reason: ComboboxInputChangeReason) => void;
   loading?: boolean;
   disabled?: boolean;
   multiple?: boolean;
@@ -214,8 +217,24 @@ const AutocompleteField = <
     );
   }, [internalOnChange]);
 
-  const handleInputChange = useCallback((value: string) => {
-    fieldProps.onInputChange?.(undefined as unknown as React.SyntheticEvent, value, 'input');
+  // Translates `ds/Combobox`'s real (Base UI) input-change reason into the MUI
+  // `AutocompleteInputChangeReason` this field's public `onInputChange` still speaks.
+  // Only actual typing is `'input'`: callers such as StixCoreObjectsField keep their
+  // "what the user searched for" state on `'input'` alone, and Base UI also rewrites
+  // the input text programmatically - with the picked item's label on a single-select
+  // pick (`item-press`), to `''` when a multi-select closes (`input-clear`), or when
+  // re-syncing to the value (`none`). Those are MUI's `'reset'`; the clear button and
+  // Escape-to-clear are MUI's `'clear'`.
+  const handleInputChange = useCallback((value: string, reason: ComboboxInputChangeReason) => {
+    let muiReason: AutocompleteInputChangeReason;
+    if (reason === 'input-change') {
+      muiReason = 'input';
+    } else if (reason === 'clear-press' || reason === 'escape-key') {
+      muiReason = 'clear';
+    } else {
+      muiReason = 'reset';
+    }
+    fieldProps.onInputChange?.(undefined as unknown as React.SyntheticEvent, value, muiReason);
   }, [fieldProps.onInputChange]);
 
   const handleInputFocus = useCallback((event: React.FocusEvent<HTMLInputElement>) => {
@@ -223,20 +242,13 @@ const AutocompleteField = <
     textfieldprops?.onFocus?.(event);
   }, [internalOnFocus, textfieldprops]);
 
-  // `ComboboxLabelProps`/`ComboboxInputProps` (in `ds/Combobox.tsx`, not touched by
-  // this task) are typed as plain `HTMLAttributes`, which omits `htmlFor`/`name` -
-  // those belong to the more specific `LabelHTMLAttributes`/`InputHTMLAttributes`.
-  // Spreading a separately, correctly-typed object sidesteps the resulting
-  // excess-property check while still passing the attribute through to the real DOM
-  // element at runtime.
-  const comboboxLabelProps = { htmlFor: inputId } as React.LabelHTMLAttributes<HTMLLabelElement>;
-  const comboboxInputProps = {
-    id: inputId,
-    name,
-    'aria-required': required || undefined,
-    onFocus: handleInputFocus,
-    onBlur: internalOnBlur,
-  } as React.InputHTMLAttributes<HTMLInputElement>;
+  const helperTextId = `${inputId}-helper-text`;
+  const hasHelperText = showError || !!helperText;
+  // The native `required` constraint is only meaningful while nothing is selected: in
+  // a multi-select the text input stays empty even with chips present (it is only
+  // the search box), so a blanket `required` there would make the browser refuse to
+  // submit a correctly filled field.
+  const nativeRequired = required && (!multiple || multiValues.length === 0);
 
   // The row CONTENT only - the MUI-style `renderOption` this file's public type
   // still carries returns a whole `<li {...props}>content</li>`; `ComboboxItem`
@@ -259,31 +271,46 @@ const AutocompleteField = <
     return element;
   }, [renderOption, getOptionLabel]);
 
-  const options = fieldProps.options ?? [];
-  let lastGroup: string | undefined;
-  const optionNodes: ReactNode[] = [];
-  options.forEach((option: Value, index: number) => {
-    if (groupBy) {
-      const group = groupBy(option);
-      if (group !== lastGroup) {
-        lastGroup = group;
-        optionNodes.push(
-          <div key={`group-${group}-${index}`} className="px-2 py-1.5 text-xs font-medium text-[var(--muted-foreground)]">
-            {group}
-          </div>,
-        );
-      }
-    }
+  const options = (fieldProps.options ?? []) as Value[];
+  const renderItem = (option: Value, index: number) => {
     const { value: optionValue } = getOptionData(option);
-    optionNodes.push(
+    return (
       <ComboboxItem key={optionValue} value={option} disabled={fieldProps.getOptionDisabled?.(option)}>
         {renderOptionContent(option, index)}
-      </ComboboxItem>,
+      </ComboboxItem>
     );
-  });
+  };
+  // `groupBy` groups CONTIGUOUS runs of options, in order - MUI's own semantics (its
+  // docs require options pre-sorted by group), and also what keeps the rendered item
+  // order identical to `options`, which Base UI's keyboard navigation relies on. Each
+  // run is keyed by its position, so a group name recurring in two separate runs
+  // cannot collide.
+  const groupRuns: { group: string; items: { option: Value; index: number }[] }[] = [];
+  if (groupBy) {
+    options.forEach((option, index) => {
+      const group = groupBy(option);
+      const lastRun = groupRuns[groupRuns.length - 1];
+      if (lastRun && lastRun.group === group) {
+        lastRun.items.push({ option, index });
+      } else {
+        groupRuns.push({ group, items: [{ option, index }] });
+      }
+    });
+  }
+  const optionNodes: ReactNode = groupBy
+    ? groupRuns.map((run, runIndex) => (
+        <ComboboxGroup key={`group-${runIndex}`}>
+          {/* An empty group name (e.g. StixCoreObjectsField's "Create" row) gets no visible header. */}
+          {run.group ? <ComboboxGroupLabel>{run.group}</ComboboxGroupLabel> : null}
+          {run.items.map(({ option, index }) => renderItem(option, index))}
+        </ComboboxGroup>
+      ))
+    : options.map((option, index) => renderItem(option, index));
 
   return (
-    <div style={{ position: 'relative' }}>
+    // `style`/`className` (e.g. `{ marginTop: 20 }`) style the whole field - label,
+    // box and helper text together - as they did on MUI's Autocomplete root.
+    <div style={{ position: 'relative', ...fieldProps.style }} className={fieldProps.className}>
       <ErasedCombobox<Value>
         value={fieldProps.value}
         onValueChange={handleValueChange}
@@ -296,9 +323,9 @@ const AutocompleteField = <
         multiple={multiple}
       >
         {textfieldprops?.label && (
-          <ComboboxLabel {...comboboxLabelProps}>{textfieldprops.label}</ComboboxLabel>
+          <ComboboxLabel htmlFor={inputId} required={required}>{textfieldprops.label}</ComboboxLabel>
         )}
-        <ComboboxField style={fieldProps.style} className={fieldProps.className}>
+        <ComboboxField error={showError}>
           {multiple && (
             <ComboboxChips>
               {(renderValue ?? (defaultRenderValue as MuiProps['renderValue']))?.(
@@ -308,7 +335,16 @@ const AutocompleteField = <
               )}
             </ComboboxChips>
           )}
-          <ComboboxInput {...comboboxInputProps} />
+          <ComboboxInput
+            id={inputId}
+            name={name}
+            required={nativeRequired}
+            aria-required={required || undefined}
+            aria-invalid={showError || undefined}
+            aria-describedby={hasHelperText ? helperTextId : undefined}
+            onFocus={handleInputFocus}
+            onBlur={internalOnBlur}
+          />
           {endAdornment ?? (
             <>
               {!fieldProps.disableClearable && <ComboboxClear aria-label={t_i18n('Clear')} />}
@@ -320,8 +356,8 @@ const AutocompleteField = <
           {noOptionsText ? <ComboboxEmpty>{noOptionsText}</ComboboxEmpty> : null}
           {optionNodes}
         </ComboboxContent>
-        {(showError || helperText) && (
-          <ComboboxHelperText>{showError ? meta.error : helperText}</ComboboxHelperText>
+        {hasHelperText && (
+          <ComboboxHelperText id={helperTextId} error={showError}>{showError ? meta.error : helperText}</ComboboxHelperText>
         )}
       </ErasedCombobox>
 
