@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { Fragment, useState, type ReactNode } from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Combobox, ComboboxField, ComboboxInput, ComboboxTrigger, ComboboxClear, ComboboxContent, ComboboxItem } from './Combobox';
+import { Combobox, ComboboxField, ComboboxInput, ComboboxTrigger, ComboboxClear, ComboboxContent, ComboboxItem, ComboboxChips, ComboboxChip, ComboboxChipRemove } from './Combobox';
 
 type Fruit = { label: string; value: string };
 
@@ -183,5 +183,131 @@ describe('Combobox', () => {
     rerender(<Harness items={cherry} />);
     expect(screen.getByText('Cherry')).toBeInTheDocument();
     expect(screen.queryByText('Banana')).not.toBeInTheDocument();
+  });
+});
+
+describe('Combobox multi-select', () => {
+  function MultiExample({
+    initialValue = [],
+    lockedValues = [],
+    betweenChips,
+  }: {
+    initialValue?: Fruit[];
+    lockedValues?: Fruit[];
+    betweenChips?: ReactNode;
+  }) {
+    const [value, setValue] = useState<Fruit[]>(initialValue);
+    const isLocked = (fruit: Fruit) => lockedValues.some((f) => f.value === fruit.value);
+    return (
+      <Combobox multiple value={value} onValueChange={setValue} options={options} getOptionLabel={(o) => o.label}>
+        <ComboboxField>
+          <ComboboxChips>
+            {value.map((fruit, i) => (
+              <Fragment key={fruit.value}>
+                <ComboboxChip disabled={isLocked(fruit)}>
+                  {fruit.label}
+                  <ComboboxChipRemove aria-label={`Remove ${fruit.label}`} />
+                </ComboboxChip>
+                {i === 0 && betweenChips}
+              </Fragment>
+            ))}
+          </ComboboxChips>
+          <ComboboxInput aria-label="Fruit" />
+          <ComboboxClear aria-label="Clear" />
+          <ComboboxTrigger />
+        </ComboboxField>
+        <ComboboxContent>
+          {options.map((o) => (
+            <ComboboxItem key={o.value} value={o}>{o.label}</ComboboxItem>
+          ))}
+        </ComboboxContent>
+      </Combobox>
+    );
+  }
+
+  it('renders one chip per selected value in a multi-select', () => {
+    render(<MultiExample initialValue={options} />);
+    expect(screen.getAllByText('Apple')).toHaveLength(1);
+    expect(screen.getAllByText('Banana')).toHaveLength(1);
+  });
+
+  it('selecting an item in the popup adds it to the array rather than replacing the selection', async () => {
+    render(<MultiExample initialValue={[options[0]]} />);
+    await userEvent.click(screen.getByRole('combobox'));
+    await userEvent.click(await screen.findByText('Banana'));
+    // Multi-select keeps the popup open after a selection, so close it before
+    // asserting - otherwise "Banana" matches both its (still open) list item and
+    // its new chip.
+    await userEvent.keyboard('{Escape}');
+    expect(screen.getByText('Apple')).toBeInTheDocument();
+    expect(screen.getByText('Banana')).toBeInTheDocument();
+  });
+
+  it('removes a chip when its remove control is activated', async () => {
+    render(<MultiExample initialValue={options} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Remove Apple' }));
+    expect(screen.queryByText('Apple')).not.toBeInTheDocument();
+    expect(screen.getByText('Banana')).toBeInTheDocument();
+  });
+
+  it('renders a disabled chip with no remove control when ComboboxChip has disabled', () => {
+    render(<MultiExample initialValue={options} lockedValues={[options[0]]} />);
+    expect(screen.getByText('Apple')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Remove Apple' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove Banana' })).toBeInTheDocument();
+  });
+
+  it('renders an arbitrary sibling element interleaved between two ComboboxChip instances in document order', () => {
+    render(
+      <MultiExample
+        initialValue={options}
+        betweenChips={<span data-testid="mode-toggle">AND</span>}
+      />,
+    );
+    const chips = screen.getAllByText(/Apple|Banana/);
+    const toggle = screen.getByTestId('mode-toggle');
+    const allNodes = [chips[0], toggle, chips[1]];
+    // Document order: Apple chip, then the interleaved sibling, then Banana chip -
+    // asserts ComboboxChips rendered exactly the children it was given, in order,
+    // with no special prop needed on ComboboxChip for this.
+    for (let i = 0; i < allNodes.length - 1; i += 1) {
+      expect(allNodes[i].compareDocumentPosition(allNodes[i + 1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
+  });
+
+  it('each chip remove control is reachable by keyboard but is not an extra Tab stop ahead of the next field', async () => {
+    // Base UI's own `ComboboxClear`/`ComboboxTrigger` are themselves `tabIndex={-1}`
+    // (confirmed by reading ComboboxClear.js/ComboboxTrigger.js) - the whole
+    // field/chip row is designed as a single Tab stop (the input), with every
+    // auxiliary control, including chip removes, reachable only via roving
+    // arrow-key navigation or a direct click/focus, never via Tab. A sibling field
+    // after the whole Combobox proves a Tab from the input skips straight past it,
+    // however many chips are present.
+    render(
+      <>
+        <MultiExample initialValue={options} />
+        <input aria-label="Next field" />
+      </>,
+    );
+    const input = screen.getByRole('combobox');
+    const nextField = screen.getByRole('textbox', { name: 'Next field' });
+    const removeApple = screen.getByRole('button', { name: 'Remove Apple' });
+    const removeBanana = screen.getByRole('button', { name: 'Remove Banana' });
+
+    // Not an extra Tab stop: tabbing once from the input (with two chips present)
+    // lands on the next real field, never on a chip's remove control.
+    input.focus();
+    await userEvent.tab();
+    expect(document.activeElement).toBe(nextField);
+    expect(document.activeElement).not.toBe(removeApple);
+    expect(document.activeElement).not.toBe(removeBanana);
+
+    // Still reachable by keyboard: a remove control can receive focus (e.g. via the
+    // roving arrow-key navigation among chips) and Enter activates it.
+    removeApple.focus();
+    expect(document.activeElement).toBe(removeApple);
+    await userEvent.keyboard('{Enter}');
+    expect(screen.queryByText('Apple')).not.toBeInTheDocument();
+    expect(screen.getByText('Banana')).toBeInTheDocument();
   });
 });

@@ -34,9 +34,9 @@ const ComboboxContext = createContext<ComboboxContextValue>({
   isOptionEqualToValue: (a, b) => Object.is(a, b),
 });
 
-export type ComboboxProps<T> = {
-  value: T | null;
-  onValueChange: (value: T | null) => void;
+export type ComboboxProps<T, Multiple extends boolean = false> = {
+  value: Multiple extends true ? T[] : T | null;
+  onValueChange: (value: Multiple extends true ? T[] : T | null) => void;
   options: T[];
   getOptionLabel: (option: T) => string;
   isOptionEqualToValue?: (a: T, b: T) => boolean;
@@ -50,15 +50,16 @@ export type ComboboxProps<T> = {
   loading?: boolean;
   disabled?: boolean;
   /**
-   * Reserved for a follow-up task that adds multi-select (chip) support; this task
-   * only implements the single-select core, so `true` is not yet supported.
+   * Enables multi-select: `value`/`onValueChange` become `T[]` and selecting an item
+   * adds to (rather than replaces) the selection. Pair with `ComboboxChips`,
+   * `ComboboxChip`, and `ComboboxChipRemove` to render one chip per selected value.
    * @default false
    */
-  multiple?: boolean;
+  multiple?: Multiple;
   children: ReactNode;
 };
 
-export function Combobox<T>({
+export function Combobox<T, Multiple extends boolean = false>({
   value,
   onValueChange,
   options,
@@ -67,16 +68,12 @@ export function Combobox<T>({
   onInputChange,
   loading = false,
   disabled = false,
-  multiple = false,
+  multiple,
   children,
-}: ComboboxProps<T>) {
+}: ComboboxProps<T, Multiple>) {
   const [open, setOpen] = useState(false);
   const [rendered, setRendered] = useState(false);
   const [query, setQuery] = useState('');
-
-  if (process.env.NODE_ENV !== 'production' && multiple) {
-    console.warn('Combobox: `multiple` selection is not supported yet - it is reserved for a follow-up task.');
-  }
 
   // Recomputed fresh from the current `options` prop on every render (never memoized
   // against a *previous* `options` reference) - Combobox must only ever render the
@@ -100,13 +97,22 @@ export function Combobox<T>({
   }), [rendered, loading, visibleOptions, isEqual]);
 
   return (
-    <BaseCombobox.Root<T, false>
+    <BaseCombobox.Root<T, Multiple>
       items={visibleOptions}
       filter={null}
       itemToStringLabel={getOptionLabel}
       isItemEqualToValue={isOptionEqualToValue}
-      value={value}
-      onValueChange={(next) => onValueChange(next)}
+      // Base UI's own `value` prop has no `null` branch in single-select mode
+      // (`ComboboxValueType<Value, Multiple>` resolves to plain `Value`, not
+      // `Value | null`), but this component's public contract uses `null` for
+      // "nothing selected" - a pre-existing convention from the single-select core
+      // (see `ComboboxProps.value` above), unaffected by adding `multiple`. Runtime
+      // behavior is unchanged (Base UI treats `null`/`undefined` the same for "no
+      // selection"; the single-select tests above pass `value={null}` already); this
+      // cast only reconciles the narrower public type at the boundary.
+      value={value as unknown as (Multiple extends true ? T[] : T) | undefined}
+      onValueChange={(next) => onValueChange(next as typeof value)}
+      multiple={multiple}
       disabled={disabled}
       open={open}
       onOpenChange={(nextOpen) => {
@@ -208,6 +214,90 @@ export function ComboboxClear({ className, ...rest }: ComboboxClearProps) {
     >
       <X className="size-4" />
     </BaseCombobox.Clear>
+  );
+}
+
+// Carries a chip's own `disabled` (locked) flag down to a `ComboboxChipRemove`
+// nested inside it, independent of Base UI's own `Combobox.Chip`/`ChipRemove`
+// `disabled` state - which is wired only to the *whole combobox's* `disabled` prop
+// (confirmed by reading ComboboxChip.js/ComboboxChipRemove.js: both read
+// `selectors.disabled` off the shared root store, with no per-chip prop of their
+// own). A locked chip is a per-item concept this design system adds on top; without
+// this context, a caller who places `ComboboxChipRemove` inside a locked
+// `ComboboxChip` would still get a working (removable) button.
+const ComboboxChipStateContext = createContext<{ disabled: boolean }>({ disabled: false });
+
+export type ComboboxChipsProps = HTMLAttributes<HTMLDivElement>;
+
+// A plain container for the chip row: renders whatever children it is given, in
+// order, with no per-item mapping of its own. This is what lets a caller interleave
+// arbitrary sibling JSX (e.g. a between-chip AND/OR mode toggle) directly between
+// `ComboboxChip` instances using ordinary React composition.
+export function ComboboxChips({ className, children, ...rest }: ComboboxChipsProps) {
+  return (
+    <BaseCombobox.Chips className={cn('flex flex-wrap items-center gap-1', className)} {...rest}>
+      {children}
+    </BaseCombobox.Chips>
+  );
+}
+
+export type ComboboxChipProps = Omit<HTMLAttributes<HTMLDivElement>, 'children'> & {
+  /**
+   * Renders a non-removable, visually distinct "locked" chip: no `ComboboxChipRemove`
+   * is rendered inside it (even if one is passed as a child - see
+   * `ComboboxChipStateContext` above) and Backspace/Delete while it is focused is
+   * suppressed, since Base UI's own chip only guards removal behind the combobox's
+   * global `disabled`, not a per-chip flag.
+   * @default false
+   */
+  disabled?: boolean;
+  /** The chip's own displayed content (e.g. a label string, or a nested `Tag`) - the same children-as-content convention as `ds/Badge`. */
+  children: ReactNode;
+};
+
+export function ComboboxChip({ disabled = false, className, children, ...rest }: ComboboxChipProps) {
+  const chipState = useMemo(() => ({ disabled }), [disabled]);
+  return (
+    <ComboboxChipStateContext.Provider value={chipState}>
+      <BaseCombobox.Chip
+        aria-disabled={disabled || undefined}
+        className={cn(
+          'inline-flex items-center gap-1 rounded-[var(--ds-radius-sm)] bg-[var(--muted)] px-2 py-0.5 text-sm text-[var(--foreground)]',
+          disabled && 'border border-[var(--border)] bg-transparent text-[var(--muted-foreground)] cursor-not-allowed',
+          className,
+        )}
+        onKeyDown={(event) => {
+          if (disabled && (event.key === 'Backspace' || event.key === 'Delete')) {
+            event.preventBaseUIHandler();
+          }
+        }}
+        {...rest}
+      >
+        {children}
+      </BaseCombobox.Chip>
+    </ComboboxChipStateContext.Provider>
+  );
+}
+
+export type ComboboxChipRemoveProps = HTMLAttributes<HTMLButtonElement>;
+
+// Renders nothing when its enclosing `ComboboxChip` is `disabled` - a locked chip has
+// no remove control, regardless of whether a caller still placed one as a child.
+export function ComboboxChipRemove({ className, ...rest }: ComboboxChipRemoveProps) {
+  const { disabled } = useContext(ComboboxChipStateContext);
+  if (disabled) {
+    return null;
+  }
+  return (
+    <BaseCombobox.ChipRemove
+      className={cn(
+        'inline-flex shrink-0 items-center justify-center text-[var(--muted-foreground)] hover:text-[var(--foreground)]',
+        className,
+      )}
+      {...rest}
+    >
+      <X className="size-3" />
+    </BaseCombobox.ChipRemove>
   );
 }
 
