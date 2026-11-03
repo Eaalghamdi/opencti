@@ -752,6 +752,7 @@
   "No dependencies": "No dependencies",
   "No heartbeat received": "No heartbeat received",
   "Not equal": "Not equal",
+  "Not necessarily blocking but using a service account is highly recommended": "Not necessarily blocking but using a service account is highly recommended",
   "Note types": "Note types",
   "Notes about this entity": "Notes about this entity",
   "Notification content": "Notification content",

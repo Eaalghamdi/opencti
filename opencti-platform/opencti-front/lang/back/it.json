@@ -752,6 +752,7 @@
   "No dependencies": "Nessuna dipendenza",
   "No heartbeat received": "Nessun segnale di attività ricevuto",
   "Not equal": "Non uguale",
+  "Not necessarily blocking but using a service account is highly recommended": "Non necessariamente bloccante, ma si raccomanda vivamente l’uso di un account di servizio",
   "Note types": "Tipi di note",
   "Notes about this entity": "Note su questa entità",
   "Notification content": "Contenuto della notifica",

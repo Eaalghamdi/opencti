@@ -53,7 +53,11 @@ interface BaseHealthCheckDefinition {
   // Name of the check, the same for every occurrence: shown in the platform settings, translated by the front (lang/back)
   label: string;
   // Precise description of the check, when the label alone is not enough: shown next to the label in the platform settings,
-  // translated by the front (lang/back). Named *_label to be extracted with the labels (extract-label-keyword matches "label: '")
+  // translated by the front (lang/back).
+  // Detected automatically when extracting the translations (yarn extract-translation in opencti-front), like the label:
+  // script/extract-label-keyword.ts collects every single-quoted string that follows the word label and a colon, which the _label suffix matches.
+  // So keep the suffix, and write the value as a single-quoted literal without apostrophe, or it is not extracted.
+  // Never write that pattern in a comment either: the script would extract the comment as a key
   description_label?: string;
   // A failure of this check is dropped when the check named here also fails for the same ingestor:
   // the other one tells the cause, this one would only repeat it less precisely
@@ -143,6 +147,7 @@ export const HEALTH_CHECK_REGISTRY = {
   [HEALTH_CHECK_USER_NOT_SERVICE_ACCOUNT]: {
     kind: IngestionHealthCheckKind.Configuration,
     label: 'User is not a service account',
+    description_label: 'Not necessarily blocking but using a service account is highly recommended',
     // Only an existing user: a missing one is reported by USER_MISSING. Internal users (system...) are not judged
     isEnabled: (_, { user }) => !!user && !user.internal,
     getFailures: (_, { user }) => (user?.user_service_account ? [] : [{ severity: IngestionHealthCheckSeverity.Advisory }]),

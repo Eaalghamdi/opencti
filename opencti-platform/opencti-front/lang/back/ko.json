@@ -752,6 +752,7 @@
   "No dependencies": "종속성 없음",
   "No heartbeat received": "하트비트 신호를 수신하지 못했습니다",
   "Not equal": "같지 않음",
+  "Not necessarily blocking but using a service account is highly recommended": "반드시 차단되는 것은 아니지만 서비스 계정을 사용하는 것이 강력히 권장됩니다",
   "Note types": "노트 유형",
   "Notes about this entity": "이 엔터티에 대한 메모",
   "Notification content": "알림 내용",

@@ -752,6 +752,7 @@
   "No dependencies": "Нет зависимостей",
   "No heartbeat received": "Не получен сигнал о работе",
   "Not equal": "Не равны",
+  "Not necessarily blocking but using a service account is highly recommended": "Не обязательно блокирует, но настоятельно рекомендуется использовать служебную учётную запись",
   "Note types": "Типы нот",
   "Notes about this entity": "Заметки об этой организации",
   "Notification content": "Содержание уведомления",

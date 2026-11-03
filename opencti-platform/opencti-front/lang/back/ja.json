@@ -752,6 +752,7 @@
   "No dependencies": "依存関係なし",
   "No heartbeat received": "ハートビートを受信できませんでした",
   "Not equal": "等しくない",
+  "Not necessarily blocking but using a service account is highly recommended": "必ずしもブロックするわけではありませんが、サービスアカウントの使用を強く推奨します",
   "Note types": "尤度",
   "Notes about this entity": "このエンティティに関するメモ",
   "Notification content": "通知タイトル",

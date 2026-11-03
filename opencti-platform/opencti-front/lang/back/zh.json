@@ -752,6 +752,7 @@
   "No dependencies": "无依赖关系",
   "No heartbeat received": "未收到心跳信号",
   "Not equal": "不相等",
+  "Not necessarily blocking but using a service account is highly recommended": "不一定阻塞，但强烈建议使用服务账户",
   "Note types": "注释类型",
   "Notes about this entity": "关于此实体的说明",
   "Notification content": "通知内容",

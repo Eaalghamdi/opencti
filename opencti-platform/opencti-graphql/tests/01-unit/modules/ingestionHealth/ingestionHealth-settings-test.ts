@@ -77,7 +77,7 @@ describe('toGraphqlIngestionHealthSettings', () => {
         enabledCheck(HEALTH_CHECK_USER_MISSING, 'User is missing', IngestionHealthCheckKind.Configuration),
         enabledCheck(HEALTH_CHECK_USER_MISSING_CAPABILITY, 'User lacks required capability', IngestionHealthCheckKind.Configuration),
         enabledCheck(HEALTH_CHECK_USER_ACCOUNT_NOT_ACTIVE, 'User account is not active', IngestionHealthCheckKind.Configuration),
-        enabledCheck(HEALTH_CHECK_USER_NOT_SERVICE_ACCOUNT, 'User is not a service account', IngestionHealthCheckKind.Configuration),
+        enabledCheck(HEALTH_CHECK_USER_NOT_SERVICE_ACCOUNT, 'User is not a service account', IngestionHealthCheckKind.Configuration, 'Not necessarily blocking but using a service account is highly recommended'),
         enabledCheck(HEALTH_CHECK_HEARTBEAT_MISSING, 'No heartbeat received', IngestionHealthCheckKind.Runtime),
         enabledCheck(HEALTH_CHECK_FEED_AND_SYNC_EXECUTION_FAILED, 'Feed or sync execution failed', IngestionHealthCheckKind.Runtime),
         enabledCheck(HEALTH_CHECK_SOURCE_ACCESS_DENIED, 'Feed or sync source denied access', IngestionHealthCheckKind.Runtime, 'Feed or sync with execution error indicating the source cannot be reached: HTTP 401/402/403'),
@@ -91,6 +91,7 @@ describe('toGraphqlIngestionHealthSettings', () => {
   it('should give a description to the checks whose label does not tell what they look at, and only to them', () => {
     const described = toGraphqlIngestionHealthSettings(undefined).health_checks.filter((check) => check.health_check_description !== undefined);
     expect(described.map((check) => [check.health_check_code, check.health_check_description])).toEqual([
+      [HEALTH_CHECK_USER_NOT_SERVICE_ACCOUNT, 'Not necessarily blocking but using a service account is highly recommended'],
       [HEALTH_CHECK_SOURCE_ACCESS_DENIED, 'Feed or sync with execution error indicating the source cannot be reached: HTTP 401/402/403'],
     ]);
   });
