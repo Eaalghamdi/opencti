@@ -8,6 +8,10 @@ export type PaginationProps = {
   onNext: () => void;
   previousDisabled?: boolean;
   nextDisabled?: boolean;
+  /** Overrides the previous control's accessible name. Defaults to "Previous page". */
+  previousLabel?: string;
+  /** Overrides the next control's accessible name. Defaults to "Next page". */
+  nextLabel?: string;
   className?: string;
   children?: ReactNode;
 };
@@ -21,6 +25,8 @@ export function Pagination({
   onNext,
   previousDisabled = false,
   nextDisabled = false,
+  previousLabel = 'Previous page',
+  nextLabel = 'Next page',
   className,
   children,
 }: PaginationProps) {
@@ -31,7 +37,7 @@ export function Pagination({
         appearance="ghost"
         size="sm"
         iconOnly
-        aria-label="Previous page"
+        aria-label={previousLabel}
         disabled={previousDisabled}
         onClick={onPrevious}
       >
@@ -43,7 +49,7 @@ export function Pagination({
         appearance="ghost"
         size="sm"
         iconOnly
-        aria-label="Next page"
+        aria-label={nextLabel}
         disabled={nextDisabled}
         onClick={onNext}
       >

@@ -52,13 +52,13 @@ describe('DataTablePagination', () => {
 
   it('calls the previous-page handler when the previous control is activated', async () => {
     renderPagination({ page: 2 });
-    await userEvent.click(screen.getByRole('button', { name: 'Previous page' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Previous' }));
     expect(setPage).toHaveBeenCalledWith(1);
   });
 
   it('calls the next-page handler when the next control is activated', async () => {
     renderPagination({ page: 1 });
-    await userEvent.click(screen.getByRole('button', { name: 'Next page' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(setPage).toHaveBeenCalledWith(2);
   });
 
@@ -66,18 +66,18 @@ describe('DataTablePagination', () => {
     // 100 elements, 25 per page, on page 1: firstItem=1 (previous disabled),
     // lastItem=25 !== 100 (next enabled).
     const firstPage = renderPagination({ page: 1 });
-    expect(screen.getByRole('button', { name: 'Previous page' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Next page' })).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled();
     firstPage.unmount();
 
     // On page 4 (items 76-100): lastItem===numberOfElements.original, so next is disabled,
     // and firstItem !== 1, so previous is enabled.
     renderPagination({ page: 4 });
-    expect(screen.getByRole('button', { name: 'Previous page' })).not.toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Next page' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Previous' })).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
   });
 
-  it('opens the items-per-page submenu and selecting a value calls the handler with the chosen count', async () => {
+  it('opens the items-per-page submenu, reflects the current page size as checked, and selecting a value calls the handler with the chosen count', async () => {
     // No columns -> no "Columns" submenu in between "Reset table" and "Rows per page", so one
     // ArrowDown after opening reaches the "Rows per page" submenu trigger directly.
     vi.mocked(useDataTableContext).mockReturnValue(buildContext({ columns: [] } as unknown as Partial<DataTableContextProps>));
@@ -89,10 +89,45 @@ describe('DataTablePagination', () => {
     await userEvent.keyboard('{ArrowDown}'); // moves the highlight onto the "Rows per page" submenu trigger
     await userEvent.keyboard('{Enter}'); // activates it, opening the nested submenu
 
-    const option = await screen.findByText('50');
-    await userEvent.click(option);
+    // The context mock's current pageSize ('25') is reflected as the checked option, mirroring
+    // the same checked-item affordance the "Columns" submenu already has via MenuCheckboxItem.
+    expect(await screen.findByRole('menuitemcheckbox', { name: '25' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('menuitemcheckbox', { name: '50' })).toHaveAttribute('aria-checked', 'false');
+
+    await userEvent.click(screen.getByRole('menuitemcheckbox', { name: '50' }));
 
     expect(handleAddProperty).toHaveBeenCalledWith('pageSize', '50');
+  });
+
+  it('opens the redirection-mode submenu and reflects the current mode as checked, and selecting a value calls the handler with the chosen mode', async () => {
+    vi.mocked(useDataTableContext).mockReturnValue(buildContext({
+      columns: [],
+      useDataTablePaginationLocalStorage: {
+        viewStorage: {
+          pageSize: '25',
+          numberOfElements: { original: 100, number: 100, symbol: '' },
+          redirectionMode: 'knowledge',
+        },
+        helpers: { handleAddProperty },
+      },
+    } as unknown as Partial<DataTableContextProps>));
+    renderPagination({ redirectionModeEnabled: true });
+
+    const trigger = screen.getByRole('button', { name: 'Table settings' });
+    trigger.focus();
+    await userEvent.keyboard('{Enter}'); // opens the root menu; "Reset table" is highlighted
+    await userEvent.keyboard('{ArrowDown}'); // "Rows per page" submenu trigger
+    await userEvent.keyboard('{ArrowDown}'); // "Redirection mode" submenu trigger
+    await userEvent.keyboard('{Enter}'); // opens the nested submenu
+
+    expect(await screen.findByRole('menuitemcheckbox', { name: 'Redirecting to the Knowledge section' }))
+      .toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Redirecting to the Overview section' }))
+      .toHaveAttribute('aria-checked', 'false');
+
+    await userEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Redirecting to the Content section' }));
+
+    expect(handleAddProperty).toHaveBeenCalledWith('redirectionMode', 'content');
   });
 
   it('displays the current number-of-elements/result-count text', () => {

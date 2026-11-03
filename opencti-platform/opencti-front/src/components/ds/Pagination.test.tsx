@@ -48,4 +48,27 @@ describe('Pagination', () => {
     expect(previous.compareDocumentPosition(label) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(label.compareDocumentPosition(next) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
+
+  describe('previousLabel/nextLabel', () => {
+    it('defaults to "Previous page"/"Next page" when omitted, preserving every other caller\'s current behavior', () => {
+      render(<Pagination onPrevious={vi.fn()} onNext={vi.fn()} />);
+      expect(screen.getByRole('button', { name: 'Previous page' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Next page' })).toBeInTheDocument();
+    });
+
+    it('overrides the accessible name of each control when provided', () => {
+      render(
+        <Pagination
+          onPrevious={vi.fn()}
+          onNext={vi.fn()}
+          previousLabel="Précédent"
+          nextLabel="Suivant"
+        />,
+      );
+      expect(screen.getByRole('button', { name: 'Précédent' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Suivant' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Previous page' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Next page' })).not.toBeInTheDocument();
+    });
+  });
 });

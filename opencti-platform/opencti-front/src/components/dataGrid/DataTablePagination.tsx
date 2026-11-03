@@ -29,6 +29,7 @@ const DataTablePagination = ({
       viewStorage: {
         pageSize,
         numberOfElements: storedNOE = { original: 0, number: 0, symbol: '' },
+        redirectionMode,
       },
       helpers,
     },
@@ -72,6 +73,10 @@ const DataTablePagination = ({
 
   const visibleColumnOptions = (columns ?? []).filter(({ id }) => !['select', 'navigate', 'icon'].includes(id));
 
+  // Mirrors the original `selected: !pageSize || pageSize === '25'` default-to-25 rule (pageSize
+  // is unset until the user picks a non-default value).
+  const isActivePageSize = (size: string) => (pageSize ? pageSize === size : size === '25');
+
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <Pagination
@@ -79,6 +84,8 @@ const DataTablePagination = ({
         onNext={() => fetchMore('forward')}
         previousDisabled={firstItem === 1}
         nextDisabled={lastItem === numberOfElements.original}
+        previousLabel={t_i18n('Previous')}
+        nextLabel={t_i18n('Next')}
       >
         <Tooltip
           trigger={(
@@ -142,9 +149,13 @@ const DataTablePagination = ({
             <MenuSubTrigger>{t_i18n('Rows per page')}</MenuSubTrigger>
             <MenuSubContent>
               {PAGE_SIZE_OPTIONS.map((size) => (
-                <MenuItem key={size} onClick={() => helpers.handleAddProperty('pageSize', size)}>
+                <MenuCheckboxItem
+                  key={size}
+                  checked={isActivePageSize(size)}
+                  onCheckedChange={() => helpers.handleAddProperty('pageSize', size)}
+                >
                   {size}
-                </MenuItem>
+                </MenuCheckboxItem>
               ))}
             </MenuSubContent>
           </MenuSub>
@@ -152,15 +163,24 @@ const DataTablePagination = ({
             <MenuSub>
               <MenuSubTrigger>{t_i18n('Redirection mode')}</MenuSubTrigger>
               <MenuSubContent>
-                <MenuItem onClick={() => helpers.handleAddProperty('redirectionMode', 'overview')}>
+                <MenuCheckboxItem
+                  checked={redirectionMode === 'overview'}
+                  onCheckedChange={() => helpers.handleAddProperty('redirectionMode', 'overview')}
+                >
                   {t_i18n('Redirecting to the Overview section')}
-                </MenuItem>
-                <MenuItem onClick={() => helpers.handleAddProperty('redirectionMode', 'knowledge')}>
+                </MenuCheckboxItem>
+                <MenuCheckboxItem
+                  checked={redirectionMode === 'knowledge'}
+                  onCheckedChange={() => helpers.handleAddProperty('redirectionMode', 'knowledge')}
+                >
                   {t_i18n('Redirecting to the Knowledge section')}
-                </MenuItem>
-                <MenuItem onClick={() => helpers.handleAddProperty('redirectionMode', 'content')}>
+                </MenuCheckboxItem>
+                <MenuCheckboxItem
+                  checked={redirectionMode === 'content'}
+                  onCheckedChange={() => helpers.handleAddProperty('redirectionMode', 'content')}
+                >
                   {t_i18n('Redirecting to the Content section')}
-                </MenuItem>
+                </MenuCheckboxItem>
               </MenuSubContent>
             </MenuSub>
           )}
