@@ -91,7 +91,7 @@ const AskArianeButton = () => {
       {/* `clickable={false}` keeps the chip a plain element inside the button —
           see fds-migration/MIGRATION-DECISIONS.md#ee-badge-inside-button */}
       <EETooltip
-        title={isCGUStatusPending && !hasRightToValidateCGU ? t_i18n('Ask Ariane isn\'t activated yet. Please reach out to your administrator to enable this feature.') : 'Open chatbot'}
+        title={isCGUStatusPending && !hasRightToValidateCGU ? t_i18n('Ask Humain isn\'t activated yet. Please reach out to your administrator to enable this feature.') : 'Open chatbot'}
       >
         <Button
           variant="ia"
@@ -103,7 +103,7 @@ const AskArianeButton = () => {
             ? undefined
             : <EEChip clickable={false} style={{ marginInlineStart: 0 }} />}
         >
-          {t_i18n('Ask Ariane')}
+          {t_i18n('Ask Humain')}
         </Button>
       </EETooltip>
 

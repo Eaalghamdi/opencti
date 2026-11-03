@@ -1,0 +1,87 @@
+/*
+ * Tailwind is imported layer-by-layer (theme + utilities only) instead of via the
+ * blanket `@import "tailwindcss"`, which would also pull in Tailwind's preflight
+ * (`base` layer) - a global CSS reset (`*{margin:0;padding:0}`, `ol,ul{list-style:none}`,
+ * `h1..h6{font-size:inherit}`, ...) that would silently restyle existing, untouched app
+ * content such as react-markdown output, since this file is loaded on every page.
+ *
+ * `source(none)` disables Tailwind's automatic whole-project content detection, and
+ * `@source "./"` re-enables scanning for this directory (`src/components/ds/`) only,
+ * minus its test files: otherwise any class-like word anywhere in the app's sources
+ * would generate a global Tailwind utility rule. Note that this comment itself is
+ * scanned too, so avoid quoting utility class names in it.
+ */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities) source(none);
+@source "./";
+@source not "./**/*.test.{ts,tsx}";
+
+/*
+ * HUMAIN-DS-style token alias layer.
+ *
+ * These are new CSS custom property *names* that later tasks (3-15) consume via
+ * Tailwind arbitrary values (e.g. `bg-[var(--card)]`). They are deliberately not a new
+ * source of truth: wherever a Filigran design-system token already exists, we alias
+ * onto it with `var(--existing-name)` so that an admin's custom theme — applied
+ * dynamically at runtime by `useFdsThemeScope` onto `document.documentElement` — keeps
+ * driving these values automatically. Only tokens with no Filigran equivalent
+ * (the `-foreground` pairs for `primary`/`secondary`/`destructive`) are hand-picked.
+ *
+ * Source of truth for the right-hand side names: `src/components/fds-tokens.generated.ts`
+ * and `src/utils/hooks/useFdsThemeScope.ts`. Do not hardcode colors here; always alias.
+ */
+:root {
+  --background: var(--bg-elevation-default-layer-0);
+  --foreground: var(--text-default-primary);
+
+  --card: var(--bg-elevation-default-layer-1);
+  --card-foreground: var(--text-default-primary);
+
+  --popover: var(--bg-elevation-default-layer-2);
+  --popover-foreground: var(--text-default-primary);
+
+  --border: var(--border-elevation-default-layer-0);
+  --input-border: var(--border-elevation-default-layer-1);
+  --ring: var(--color-filigran-brand-primary);
+
+  --primary: var(--color-filigran-brand-primary);
+  --primary-foreground: #ffffff;
+
+  --secondary: var(--color-filigran-tonic-primary);
+  --secondary-foreground: #ffffff;
+
+  --muted: var(--bg-elevation-default-layer-1);
+  --muted-foreground: var(--text-default-secondary);
+
+  /* Same token `theme.palette.background.accent` (useFdsThemeScope's `accent`) resolves to -
+   * the "something in this view is selected" tint, stronger than `--muted`'s hover tint. */
+  --accent: var(--bg-elevation-default-layer-3);
+
+  --destructive: var(--color-feedback-error-primary);
+  --destructive-foreground: #ffffff;
+
+  --success: var(--color-feedback-success-primary);
+  --warning: var(--color-feedback-warning-primary);
+  --info: var(--color-feedback-info-primary);
+
+  /*
+   * Radii are this library's own values, so they are `ds-`-namespaced: the
+   * Filigran design system already defines identically-named `--radius-*` tokens
+   * (with different values) that this unlayered, later-loaded file must not override.
+   */
+  --ds-radius-sm: 0.25rem;
+  --ds-radius-md: 0.5rem;
+  --ds-radius-full: 9999px;
+
+  /*
+   * A perceptible marker for "this field is currently constraining/substituting
+   * the view", applied by a caller via a data attribute (e.g. `data-selected` on
+   * `ComboboxField`) rather than a per-component library prop - see
+   * fds-migration/MIGRATION-DECISIONS.md#field-state-tint for why the equivalent
+   * MUI `sx` tint was never built into the (external) Filigran design system.
+   * Aliases the same colour CustomViewPreviewEntitySelector previously reached
+   * via `theme.palette.designSystem.tertiary.orange[400]`.
+   */
+  --ds-tint-warning: var(--orange-400);
+}

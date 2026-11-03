@@ -1,25 +1,17 @@
-import React, { CSSProperties, FunctionComponent, useMemo, useRef, useState } from 'react';
-import { DragIndicatorOutlined } from '@mui/icons-material';
-import Menu from '@mui/material/Menu';
-import { DragDropContext, Draggable, DraggableLocation, Droppable } from '@hello-pangea/dnd';
-import MenuItem from '@mui/material/MenuItem';
+import React, { CSSProperties, FunctionComponent, useRef, useState } from 'react';
 import { PopoverProps } from '@mui/material/Popover';
-import { useTheme } from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import { UNKNOWN_ENTITIES_LOCAL_STORAGE_KEY } from '@components/SearchBulkUnknownEntities';
-import { DataTableColumn, DataTableColumns, DataTableHeadersProps } from '../dataTableTypes';
+import { DataTableColumn, DataTableHeadersProps } from '../dataTableTypes';
 import DataTableHeader, { SELECT_COLUMN_SIZE } from './DataTableHeader';
-import type { Theme } from '../../Theme';
 import { useDataTableContext } from './DataTableContext';
-import { Checkbox } from '@filigran/design-system';
+import { Checkbox, Menu, MenuContent, MenuItem } from '../../ds';
 
 const DataTableHeaders: FunctionComponent<DataTableHeadersProps> = ({
   dataTableToolBarComponent,
 }) => {
-  const theme = useTheme<Theme>();
   const {
     columns,
-    setColumns,
     useDataTableToggle: {
       selectAll,
       numberOfSelectedElements,
@@ -51,22 +43,12 @@ const DataTableHeaders: FunctionComponent<DataTableHeadersProps> = ({
     setActiveColumn(undefined);
   };
 
-  const handleToggleVisibility = (columnId: string) => {
-    const newColumns = [...columns];
-    const currentColumn = newColumns.find(({ id }) => id === columnId);
-    if (!currentColumn) {
-      return;
-    }
-    currentColumn.visible = currentColumn.visible ?? true;
-    setColumns(newColumns);
-  };
-
-  const draggableColumns = useMemo(() => columns.filter(({ id }) => !['select', 'navigate', 'icon'].includes(id)), [columns]);
-
   const hasSelectedElements = numberOfSelectedElements > 0 || selectAll;
   const checkboxStyle: CSSProperties = {
+    // Same selected-state token as the row's own selected background (ds/tokens.css, added by
+    // the DataTableLine.tsx restyle) - kept visually consistent with it, not reinvented here.
     background: hasSelectedElements && !removeSelectAll
-      ? theme.palette.background.accent
+      ? 'var(--accent)'
       : 'transparent',
     minWidth: startColumnWidth,
     // The row is a 42px flex line whose default `align-items: stretch` made this slot full height while the 16px
@@ -92,7 +74,15 @@ const DataTableHeaders: FunctionComponent<DataTableHeadersProps> = ({
             <Checkbox
               aria-label={t_i18n('Select all')}
               checked={selectAll}
-              className="mx-2"
+              // None selected -> unchecked; some (but not selectAll) -> indeterminate;
+              // selectAll -> checked. Same selection signals (`selectAll`/`numberOfSelectedElements`)
+              // already read above for `hasSelectedElements`, now also rendered as a tri-state.
+              indeterminate={!selectAll && numberOfSelectedElements > 0}
+              // `ds/tokens.css`'s Tailwind utilities (e.g. a literal `mx-2`) only compile for
+              // files under `src/components/ds/` (see `ds/tokens.css:17-18`'s `@source "./"`),
+              // so a Tailwind class written here would carry no CSS - same 8px gap as
+              // DataTableLine.tsx's row checkbox, via logical margin properties instead.
+              style={{ marginInlineStart: 8, marginInlineEnd: 8 }}
               onCheckedChange={() => handleToggleSelectAll?.()}
               disabled={!handleToggleSelectAll}
             />
@@ -111,71 +101,39 @@ const DataTableHeaders: FunctionComponent<DataTableHeadersProps> = ({
       {showToolbar ? dataTableToolBarComponent : (
         <>
           {anchorEl && (
-            <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleClose}>
-              {columns.some(({ id }) => id === 'todo-navigate') && (
-                <DragDropContext
-                  key={(new Date()).toString()}
-                  onDragEnd={({ source, destination }) => {
-                    const result = Array.from(draggableColumns);
-                    const [removed] = result.splice(source.index, 1);
-                    result.splice((destination as DraggableLocation).index, 0, removed);
-
-                    const newColumns: DataTableColumns = [
-                      columns.at(0),
-                      ...(result.map((c, index) => {
-                        const currentColumn = columns.find(({ id }) => id === c.id);
-                        return ({ ...currentColumn, order: index });
-                      })),
-                      columns.at(-1),
-                    ] as DataTableColumns;
-
-                    setColumns(newColumns);
-                  }}
-                >
-                  <Droppable droppableId="droppable-list">
-                    {(provided) => (
-                      <div ref={provided.innerRef} {...provided.droppableProps}>
-                        {draggableColumns.map((c, index) => (
-                          <Draggable
-                            key={index}
-                            draggableId={c.id}
-                            index={index}
-                          >
-                            {(item) => (
-                              <MenuItem
-                                ref={item.innerRef}
-                                {...item.draggableProps}
-                                {...item.dragHandleProps}
-                              >
-                                <DragIndicatorOutlined fontSize="small" />
-                                <Checkbox
-                                  aria-label={c.label}
-                                  onClick={() => handleToggleVisibility(c.id)}
-                                  checked={c.visible}
-                                />
-                                {c.label}
-                              </MenuItem>
-                            )}
-                          </Draggable>
-                        ))}
-                        {provided.placeholder}
-                      </div>
-                    )}
-                  </Droppable>
-                </DragDropContext>
-              )}
-              {activeColumn?.isSortable && (<MenuItem onClick={() => onSort(activeColumn.id, true)}>{t_i18n('Sort Asc')}</MenuItem>)}
-              {activeColumn?.isSortable && (<MenuItem onClick={() => onSort(activeColumn.id, false)}>{t_i18n('Sort Desc')}</MenuItem>)}
-              {(activeColumn && availableFilterKeys?.includes(activeColumn.id)) && (
-                <MenuItem
-                  onClick={() => {
-                    onAddFilter(activeColumn.id);
-                    handleClose();
-                  }}
-                >
-                  {t_i18n('Add filtering')}
-                </MenuItem>
-              )}
+            // `anchorEl` is only ever a clicked column-menu button's DOM node (set by
+            // DataTableHeader.tsx's `setAnchorEl(e.currentTarget)`) or `null` - narrower than
+            // its declared `PopoverProps['anchorEl']` type (which also allows a function or a
+            // raw position), kept only so this state stays assignable to that prop.
+            <Menu
+              open
+              onOpenChange={(open) => {
+                if (!open) handleClose();
+              }}
+            >
+              <MenuContent anchor={anchorEl as Element | null}>
+                {/*
+                  Only the items this menu could actually show before the restyle. The old
+                  drag-and-drop column list was gated behind a column id ('todo-navigate') that
+                  no column ever has, so it never rendered; it is not replaced by a
+                  column-visibility list here. Column visibility lives in DataTablePagination.tsx's
+                  "Table settings" menu.
+                */}
+                {/*
+                  `ds/MenuItem` closes the menu on click by default (`closeOnClick`, true
+                  unless overridden - see ds/Menu.tsx); the old MUI `MenuItem` never closed on
+                  its own, and these two never called `handleClose()` themselves, so picking a
+                  sort direction left the menu open. `closeOnClick={false}` keeps that exact
+                  behavior rather than silently changing it via the primitive swap.
+                */}
+                {activeColumn?.isSortable && (<MenuItem closeOnClick={false} onClick={() => onSort(activeColumn.id, true)}>{t_i18n('Sort Asc')}</MenuItem>)}
+                {activeColumn?.isSortable && (<MenuItem closeOnClick={false} onClick={() => onSort(activeColumn.id, false)}>{t_i18n('Sort Desc')}</MenuItem>)}
+                {(activeColumn && availableFilterKeys?.includes(activeColumn.id)) && (
+                  <MenuItem onClick={() => onAddFilter(activeColumn.id)}>
+                    {t_i18n('Add filtering')}
+                  </MenuItem>
+                )}
+              </MenuContent>
             </Menu>
           )}
 

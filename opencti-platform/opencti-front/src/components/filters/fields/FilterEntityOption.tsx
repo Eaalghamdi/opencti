@@ -1,55 +1,52 @@
 import { FilterOptionValue } from '@components/common/lists/FilterAutocomplete';
 import { Checkbox, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { useTheme } from '@mui/material/styles';
-import { FunctionComponent, HTMLAttributes } from 'react';
-import { FILTER_LINE_ITEM_HEIGHT } from '../../../utils/filters/filtersUtils';
+import { FunctionComponent } from 'react';
 import ItemIcon from '../../ItemIcon';
 
 interface FilterEntityOptionProps {
   option: FilterOptionValue;
   checked: boolean;
   disabled: boolean;
-  liProps: HTMLAttributes<HTMLLIElement>;
 }
 
 /**
- * One row of the entity autocomplete: checkbox, entity icon and truncated label, the whole
- * row also being its own tooltip trigger for the labels the ellipsis cuts.
+ * The CONTENT of one row of the entity autocomplete: checkbox, entity icon and truncated
+ * label, the whole row also being its own tooltip trigger for the labels the ellipsis cuts.
+ *
+ * `ComboboxItem` (ds/Combobox) owns the row's actual interactive element and its ARIA
+ * (role="option", aria-selected, aria-disabled, the disabled/pointer-events behavior) - this
+ * component only supplies what goes inside it, the same "library owns the row, caller supplies
+ * content" split AutocompleteField.tsx's own renderOptionContent uses for its MUI-style
+ * renderOption adapter. Its `ComboboxItem` (in FilterEntityAutocomplete) therefore takes
+ * `aria-label={option.label}` - the row's name, not "<label> <label>" from this checkbox's
+ * own label plus the text - and `hideIndicator`, this checkbox being the row's selected cue.
  */
 const FilterEntityOption: FunctionComponent<FilterEntityOptionProps> = ({
   option,
   checked,
   disabled,
-  liProps,
 }) => {
-  const theme = useTheme();
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <li
-          {...liProps}
-          // Both already set by MUI's option props; stated so the aria-disabled below reads as an option's.
-          role="option"
-          aria-selected={liProps['aria-selected']}
-          aria-disabled={disabled}
-          aria-label={option.label}
+        <span
           style={{
-            whiteSpace: 'nowrap',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
             overflow: 'hidden',
+            whiteSpace: 'nowrap',
             textOverflow: 'ellipsis',
-            minHeight: FILTER_LINE_ITEM_HEIGHT,
-            padding: `0 ${theme.spacing(1)} 0 ${theme.spacing(2)}`,
-            gap: theme.spacing(1),
-            margin: 0,
+            width: '100%',
             pointerEvents: disabled ? 'none' : undefined,
           }}
         >
           <Checkbox checked={checked} disabled={disabled} aria-label={option.label} />
           <ItemIcon type={option.type} color={option.color} />
-          <span>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {option.label}
           </span>
-        </li>
+        </span>
       </TooltipTrigger>
       <TooltipContent>{option.label}</TooltipContent>
     </Tooltip>

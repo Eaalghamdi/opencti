@@ -96,11 +96,25 @@ describe('FilterEntityAutocomplete with dashboard variables', () => {
   };
 
   // The open list, read in display order: group headers and options, as the user sees them.
+  // `ComboboxContent` (ds/Combobox) always mounts its own `ComboboxStatus` aria-live region as
+  // the list's first child (announcing loading state to screen readers) - filtered out here,
+  // it carries no label/option text of its own. Everything else is a `ComboboxGroup`
+  // (role="group") holding one contiguous run of same-group options under its header.
   const readOpenList = async (user: ReturnType<typeof testRender>['user']) => {
     await user.click(screen.getByRole('combobox'));
     const listbox = await screen.findByRole('listbox');
-    return Array.from(listbox.querySelectorAll('.MuiAutocomplete-groupLabel, li[role="option"]'))
-      .map((node) => (node.getAttribute('role') === 'option' ? node.getAttribute('aria-label') : `[${node.textContent}]`));
+    // Each group is a real `role="group"`, named by its header through aria-labelledby: the
+    // header is read as `[name]` through that association, then the group's own options.
+    return Array.from(listbox.children)
+      .filter((node) => node.getAttribute('role') !== 'status')
+      .flatMap((node) => {
+        if (node.getAttribute('role') === 'option') return [node.textContent?.trim()];
+        expect(node).toHaveAttribute('role', 'group');
+        const labelId = node.getAttribute('aria-labelledby');
+        const header = labelId ? document.getElementById(labelId) : null;
+        const options = Array.from(node.querySelectorAll('[role="option"]')).map((option) => option.textContent?.trim());
+        return header ? [`[${header.textContent?.trim()}]`, ...options] : options;
+      });
   };
 
   // The group of the searched entities is the translated filter label.
@@ -148,14 +162,28 @@ describe('FilterEntityAutocomplete with dashboard variables', () => {
     expect(helpers.handleAddRepresentationFilter).toHaveBeenCalledWith('filter-1', `$var:${LABEL_VARIABLE_ID}`);
   });
 
+  it('names each option row by its label alone, with its checkbox inside it', async () => {
+    const { user } = renderAutocomplete(buildFilter('objectLabel', ['label-2']));
+    await user.click(screen.getByRole('combobox'));
+    // The option's own accessible name is exactly the label, not "<label> <label>" from the
+    // nested labelled Checkbox - the shape tests_e2e/model/filters.pageModel.ts relies on:
+    // `getByLabel(label, { exact: true }).getByRole('checkbox')`.
+    const option = await screen.findByRole('option', { name: 'APT' });
+    expect(option).toHaveAttribute('aria-label', 'APT');
+    expect(option).toHaveAttribute('aria-selected', 'true');
+    const labelled = screen.getAllByLabelText('APT', { exact: true });
+    expect(labelled).toContain(option);
+    const checkbox = within(option).getByRole('checkbox');
+    expect(checkbox).toBeChecked();
+  });
+
   it('shows a selected token under the variable name, or as a deleted variable, never raw', () => {
-    renderAutocomplete(
+    const { container } = renderAutocomplete(
       buildFilter('objectLabel', [`$var:${LABEL_VARIABLE_ID}`, `$var:${DELETED_VARIABLE_ID}`]),
       { variables: [labelVariable] },
     );
-    const field = screen.getByRole('combobox').closest('.MuiAutocomplete-root') as HTMLElement;
-    expect(within(field).getByText('Client label')).toBeInTheDocument();
-    expect(within(field).getByText('Deleted variable')).toBeInTheDocument();
-    expect(field.textContent).not.toContain('$var:');
+    expect(within(container).getByText('Client label')).toBeInTheDocument();
+    expect(within(container).getByText('Deleted variable')).toBeInTheDocument();
+    expect(container.textContent).not.toContain('$var:');
   });
 });

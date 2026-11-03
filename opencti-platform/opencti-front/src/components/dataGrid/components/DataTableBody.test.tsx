@@ -1,5 +1,8 @@
 import React from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
@@ -166,5 +169,99 @@ describe('DataTableBody empty states', () => {
     rerender(tableBody());
     expect(screen.queryByTestId('loading-rows')).not.toBeInTheDocument();
     expect(screen.getByText('No results for "indicator"')).toBeInTheDocument();
+  });
+});
+
+describe('DataTableBody row height (end-to-end)', () => {
+  // This is the capstone check for the whole ds/ restyle plan: it renders the REAL, composed
+  // DataTableLine (not the stub mocked at the top of this file) inside DataTableBody's own
+  // windowing, and measures it exactly the way DataTableLine.test.tsx's own local ROW_HEIGHT
+  // test does, to prove no drift accumulated across every restyle task (4-9).
+  afterEach(() => {
+    // Restore the file-level stub so every other test in this file keeps using it.
+    vi.doMock('./DataTableLine', () => ({
+      default: ({ row }: { row: { id: string } }) => <div>{row.id}</div>,
+      DataTableLinesDummy: () => <div data-testid="loading-rows" />,
+    }));
+  });
+
+  it('ROW_HEIGHT in DataTableBody.tsx equals the actual rendered height of the real, composed DataTableLine row', async () => {
+    vi.doUnmock('./DataTableLine');
+    vi.resetModules();
+
+    const { default: RealDataTableBody } = await import('./DataTableBody');
+    const { useDataTableContext: realUseDataTableContext } = await import('./DataTableContext');
+    const { DataTableVariant: RealVariant } = await import('../dataTableTypes');
+
+    const row = { id: 'row-1' };
+    const data = { id: 'row-1', name: 'Entity one' };
+    const column = {
+      id: 'name',
+      label: 'Name',
+      percentWidth: 100,
+      order: 0,
+      visible: true,
+      render: (d: { name: string }) => <span>{d.name}</span>,
+    };
+
+    vi.mocked(realUseDataTableContext).mockReturnValue({
+      columns: [column],
+      useLineData: () => data,
+      useDataCellHelpers: () => undefined,
+      getComputeLink: () => undefined,
+      actions: undefined,
+      icon: undefined,
+      disableNavigation: true,
+      onLineClick: undefined,
+      selectOnLineClick: false,
+      variant: RealVariant.default,
+      startsWithAction: false,
+      startsWithIcon: false,
+      startColumnWidth: 42,
+      endsWithAction: false,
+      endsWithNavigate: false,
+      actionsColumnWidth: 42,
+      tableWidthState: [500, vi.fn()],
+      useDataTableToggle: {
+        selectAll: false,
+        deSelectedElements: {},
+        selectedElements: {},
+        onToggleEntity: vi.fn(),
+      },
+      useDataTablePaginationLocalStorage: {
+        viewStorage: { redirectionMode: undefined },
+      },
+      formatter: { t_i18n: (s: string) => s },
+      resolvePath: () => [row],
+      dataQueryArgs: {},
+      data: [row],
+      enableInfiniteScroll: false,
+    } as unknown as DataTableContextProps);
+
+    const bodySourcePath = join(dirname(fileURLToPath(import.meta.url)), 'DataTableBody.tsx');
+    const bodySource = readFileSync(bodySourcePath, 'utf-8');
+    const match = bodySource.match(/const ROW_HEIGHT = (\d+);/);
+    expect(match).not.toBeNull();
+    const rowHeight = Number(match?.[1]);
+
+    render(
+      <MemoryRouter>
+        <ThemeProvider theme={theme}>
+          <RealDataTableBody
+            pageStart={0}
+            pageSize={10}
+            hasFilterComponent={false}
+            hideHeaders
+          />
+        </ThemeProvider>
+      </MemoryRouter>,
+    );
+
+    const anchor = screen.getByTestId('Entity one');
+    const cell = anchor.querySelector('[role="gridcell"]') as HTMLElement;
+    const cellHeight = Number.parseFloat(getComputedStyle(cell).height);
+    const borderWidth = Number.parseFloat(getComputedStyle(anchor).borderBottomWidth);
+
+    expect(cellHeight + borderWidth).toBe(rowHeight);
   });
 });

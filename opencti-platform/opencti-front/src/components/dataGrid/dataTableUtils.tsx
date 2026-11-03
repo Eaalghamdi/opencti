@@ -1,8 +1,8 @@
-import React, { ReactNode } from 'react';
+import React, { CSSProperties, ReactNode } from 'react';
 import { Chip } from '@filigran/design-system';
 import StixCoreObjectLabels from '@components/common/stix_core_objects/StixCoreObjectLabels';
-import Tooltip from '@mui/material/Tooltip';
 import { useTheme } from '@mui/material/styles';
+import { Badge, Tooltip } from '../ds';
 import { DraftChip, DraftStatusChip } from '@components/common/draft/DraftChip';
 import { HorizontalRule, Security } from '@mui/icons-material';
 import { Pirs_PirFragment$data } from '@components/pir/__generated__/Pirs_PirFragment.graphql';
@@ -50,6 +50,22 @@ export const Truncate = ({ children }: { children: ReactNode }) => (
   </div>
 );
 
+/*
+ * ds/Badge has no neutral/muted color: every value in its `color` enum is semantic/brand
+ * (its "secondary" aliases `--color-filigran-tonic-primary`, Filigran's own reserved
+ * tonic/brand-accent token - confirmed in ds/tokens.css). @filigran/design-system's own Chip
+ * usage contract (node_modules/@filigran/design-system/skills/consumer/usage-contracts/
+ * Chip.md, RULE-02) is explicit that "color carries no meaning alone... default to neutral...
+ * use tone='tonic' only for a brand marker" - so a semantic color enum value is the wrong tool
+ * for a plain tag label. This overrides Badge's own border/text color with ds/tokens.css's
+ * real neutral tokens instead, for the one place in this file (the `tags` column) using Badge.
+ */
+const neutralBadgeStyle: CSSProperties = {
+  backgroundColor: 'transparent',
+  borderColor: 'var(--border)',
+  color: 'var(--foreground)',
+};
+
 export const defaultRender: NonNullable<DataTableColumn['render']> = (
   data,
   displayDraftChip = false,
@@ -57,19 +73,22 @@ export const defaultRender: NonNullable<DataTableColumn['render']> = (
   const displayedData = Array.isArray(data) ? data.join(', ') : data;
   return (
     <FieldOrEmpty source={data}>
-      <Tooltip title={displayedData}>
-        <Stack
-          direction="row"
-          sx={{
-            gap: 1,
-            alignItems: 'center',
-            maxWidth: '100%',
-          }}
-        >
-          <Truncate>{displayedData}</Truncate>
-          {displayDraftChip && <DraftChip />}
-        </Stack>
-      </Tooltip>
+      <Tooltip
+        trigger={(
+          <Stack
+            direction="row"
+            sx={{
+              gap: 1,
+              alignItems: 'center',
+              maxWidth: '100%',
+            }}
+          >
+            <Truncate>{displayedData}</Truncate>
+            {displayDraftChip && <DraftChip />}
+          </Stack>
+        )}
+        content={displayedData}
+      />
     </FieldOrEmpty>
   );
 };
@@ -91,13 +110,16 @@ export const renderObservableValue = (observable: any, theme: Theme) => {
                 alignItems: 'center',
               }}
             >
-              <Tooltip title={country.name}>
-                <img
-                  style={{ width: 20 }}
-                  src={flagUrl}
-                  alt={country.name}
-                />
-              </Tooltip>
+              <Tooltip
+                trigger={(
+                  <img
+                    style={{ width: 20 }}
+                    src={flagUrl}
+                    alt={country.name}
+                  />
+                )}
+                content={country.name}
+              />
               <div>
                 {defaultRender(
                   observable.observable_value,
@@ -224,28 +246,31 @@ const defaultColumns: DataTableProps['dataColumns'] = {
     percentWidth: 25,
     isSortable: true,
     render: ({ color }) => (
-      <Tooltip title={color}>
-        <Stack
-          direction="row"
-          sx={{
-            gap: 0.5,
-            alignItems: 'center',
-            maxWidth: '100%',
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: color,
-              height: 20,
-              width: 20,
-              display: 'inline-flex',
-              borderRadius: 20,
-              marginRight: 5,
+      <Tooltip
+        trigger={(
+          <Stack
+            direction="row"
+            sx={{
+              gap: 0.5,
+              alignItems: 'center',
+              maxWidth: '100%',
             }}
-          />
-          <Truncate>{color}</Truncate>
-        </Stack>
-      </Tooltip>
+          >
+            <div
+              style={{
+                backgroundColor: color,
+                height: 20,
+                width: 20,
+                display: 'inline-flex',
+                borderRadius: 20,
+                marginInlineEnd: 5,
+              }}
+            />
+            <Truncate>{color}</Truncate>
+          </Stack>
+        )}
+        content={color}
+      />
     ),
   },
   confidence: {
@@ -293,9 +318,10 @@ const defaultColumns: DataTableProps['dataColumns'] = {
               variant="header"
             />
           ) : (
-            <Tooltip title={t_i18n('No executable tests are currently set for this entity, these can be set in OpenAEV')}>
-              <span style={{ width: '100%' }}>-</span>
-            </Tooltip>
+            <Tooltip
+              trigger={<span style={{ width: '100%' }}>-</span>}
+              content={t_i18n('No executable tests are currently set for this entity, these can be set in OpenAEV')}
+            />
           )
     ),
   },
@@ -461,9 +487,7 @@ const defaultColumns: DataTableProps['dataColumns'] = {
           ? data.importFiles.edges[0]?.node
           : { name: 'N/A', metaData: { mimetype: 'N/A' }, size: 0 };
       return (
-        <Tooltip title={file?.name}>
-          <Truncate>{file?.name}</Truncate>
-        </Tooltip>
+        <Tooltip trigger={<Truncate>{file?.name}</Truncate>} content={file?.name} />
       );
     },
   },
@@ -478,9 +502,7 @@ const defaultColumns: DataTableProps['dataColumns'] = {
           ? data.importFiles.edges[0]?.node
           : { name: 'N/A', metaData: { mimetype: 'N/A' }, size: 0 };
       return (
-        <Tooltip title={file?.metaData?.mimetype}>
-          <Truncate>{file?.metaData.mimetype}</Truncate>
-        </Tooltip>
+        <Tooltip trigger={<Truncate>{file?.metaData.mimetype}</Truncate>} content={file?.metaData?.mimetype} />
       );
     },
   },
@@ -495,9 +517,7 @@ const defaultColumns: DataTableProps['dataColumns'] = {
           ? data.importFiles.edges[0]?.node
           : { name: 'N/A', metaData: { mimetype: 'N/A' }, size: 0 };
       return (
-        <Tooltip title={b(file?.size)}>
-          <span>{b(file?.size)}</span>
-        </Tooltip>
+        <Tooltip trigger={<span>{b(file?.size)}</span>} content={b(file?.size)} />
       );
     },
   },
@@ -808,9 +828,7 @@ const defaultColumns: DataTableProps['dataColumns'] = {
     percentWidth: 8,
     isSortable: true,
     render: ({ number_observed }, { n }) => (
-      <Tooltip title={number_observed}>
-        <span>{n(number_observed)}</span>
-      </Tooltip>
+      <Tooltip trigger={<span>{n(number_observed)}</span>} content={number_observed} />
     ),
   },
   objectAssignee: {
@@ -876,9 +894,7 @@ const defaultColumns: DataTableProps['dataColumns'] = {
     percentWidth: 15,
     isSortable: false,
     render: ({ operatingSystem }) => (
-      <Tooltip title={operatingSystem?.name}>
-        <span>{operatingSystem?.name ?? EMPTY_VALUE}</span>
-      </Tooltip>
+      <Tooltip trigger={<span>{operatingSystem?.name ?? EMPTY_VALUE}</span>} content={operatingSystem?.name} />
     ),
   },
   opinions_metrics_mean: {
@@ -1210,23 +1226,29 @@ const defaultColumns: DataTableProps['dataColumns'] = {
     isSortable: false,
     render: ({ tags }) => {
       if (!tags || tags.length === 0) return EMPTY_VALUE;
+      // ds/Badge, not the FDS Chip: this is a small inline label with no interaction (no
+      // onClick/onDelete, same as the Chip it replaces here), so Badge is a correct fit.
+      // `variant="outline"` plus `neutralBadgeStyle` (see above) is the local neutral
+      // treatment - not a `color` enum value, which would carry brand/semantic meaning
+      // this plain tag label doesn't have.
       return (
         <Tooltip
-          title={(
+          trigger={(
+            <div>
+              <Badge variant="outline" style={{ ...neutralBadgeStyle, marginInlineEnd: 7 }}>{tags[0]}</Badge>
+              {tags.length > 1 && (
+                <Badge variant="outline" style={{ ...neutralBadgeStyle, marginInlineEnd: 7 }}>...</Badge>
+              )}
+            </div>
+          )}
+          content={(
             <div style={{ display: 'flex', flexWrap: 'wrap', rowGap: '4px' }}>
               {tags.map((tag: string) => (
-                <Chip key={tag} label={tag} style={{ marginRight: 7 }} />
+                <Badge key={tag} variant="outline" style={{ ...neutralBadgeStyle, marginInlineEnd: 7 }}>{tag}</Badge>
               ))}
             </div>
           )}
-        >
-          <div>
-            <Chip label={tags[0]} style={{ marginRight: 7 }} />
-            {tags.length > 1 && (
-              <Chip label="..." style={{ marginRight: 7 }} />
-            )}
-          </div>
-        </Tooltip>
+        />
       );
     },
   },
@@ -1410,28 +1432,31 @@ const defaultColumns: DataTableProps['dataColumns'] = {
     percentWidth: 15,
     isSortable: true,
     render: ({ x_opencti_color }) => (
-      <Tooltip title={x_opencti_color}>
-        <Stack
-          direction="row"
-          sx={{
-            gap: 0.5,
-            alignItems: 'center',
-            maxWidth: '100%',
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: x_opencti_color,
-              height: 20,
-              width: 20,
-              display: 'inline-flex',
-              borderRadius: 20,
-              marginRight: 5,
+      <Tooltip
+        trigger={(
+          <Stack
+            direction="row"
+            sx={{
+              gap: 0.5,
+              alignItems: 'center',
+              maxWidth: '100%',
             }}
-          />
-          <Truncate>{x_opencti_color}</Truncate>
-        </Stack>
-      </Tooltip>
+          >
+            <div
+              style={{
+                backgroundColor: x_opencti_color,
+                height: 20,
+                width: 20,
+                display: 'inline-flex',
+                borderRadius: 20,
+                marginInlineEnd: 5,
+              }}
+            />
+            <Truncate>{x_opencti_color}</Truncate>
+          </Stack>
+        )}
+        content={x_opencti_color}
+      />
     ),
   },
   x_opencti_order: {
@@ -1607,13 +1632,16 @@ const defaultColumns: DataTableProps['dataColumns'] = {
                 alignItems: 'center',
               }}
             >
-              <Tooltip title={x_opencti_aliases}>
-                <img
-                  style={{ width: 20 }}
-                  src={flagUrl}
-                  alt={x_opencti_aliases}
-                />
-              </Tooltip>
+              <Tooltip
+                trigger={(
+                  <img
+                    style={{ width: 20 }}
+                    src={flagUrl}
+                    alt={x_opencti_aliases}
+                  />
+                )}
+                content={x_opencti_aliases}
+              />
               <div>{x_opencti_aliases[0]}</div>
             </div>
           );
@@ -1621,19 +1649,22 @@ const defaultColumns: DataTableProps['dataColumns'] = {
       }
 
       return (
-        <Tooltip title={x_opencti_aliases.join(', ')}>
-          <div
-            style={{
-              maxWidth: '100%',
-              display: 'flex',
-              gap: theme.spacing(0.5),
-            }}
-          >
-            {x_opencti_aliases.map((value: string) => (
-              <Chip key={value} label={value} />
-            ))}
-          </div>
-        </Tooltip>
+        <Tooltip
+          trigger={(
+            <div
+              style={{
+                maxWidth: '100%',
+                display: 'flex',
+                gap: theme.spacing(0.5),
+              }}
+            >
+              {x_opencti_aliases.map((value: string) => (
+                <Chip key={value} label={value} />
+              ))}
+            </div>
+          )}
+          content={x_opencti_aliases.join(', ')}
+        />
       );
     },
   },

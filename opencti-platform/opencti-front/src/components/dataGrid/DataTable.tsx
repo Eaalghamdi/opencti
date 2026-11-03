@@ -156,8 +156,6 @@ const DataTableInternalToolbar = ({
   deleteDisable,
   container,
 }: DataTableInternalToolbarProps) => {
-  const theme = useTheme<Theme>();
-
   const {
     useDataTableToggle: {
       selectedElements,
@@ -173,8 +171,10 @@ const DataTableInternalToolbar = ({
 
   return (
     <div
+      // Same "something is selected" tint as the selected row's own background in
+      // DataTableLine.tsx - both read ds/tokens.css's `--accent` alias, not theme.palette.
       style={{
-        background: theme.palette.background.accent,
+        background: 'var(--accent)',
         flex: 1,
       }}
     >

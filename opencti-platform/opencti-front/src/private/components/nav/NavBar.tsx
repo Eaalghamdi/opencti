@@ -256,8 +256,8 @@ const NavBarComponent: React.FC<NavBarComponentProps> = ({ queryRef }) => {
       header={(
         <ProductSwitcher
           label={t_i18n('Switch product')}
-          logo={<img src={productLogo} alt="" width={126} height={28} style={{ objectFit: 'contain', objectPosition: 'left' }} />}
-          logoCollapsed={<img src={productLogoCollapsed} alt="" height={28} width={28} style={{ objectFit: 'contain' }} />}
+          logo={<span style={{ fontSize: 22, fontWeight: 700, lineHeight: '28px', color: theme.palette.primary?.main }}>H</span>}
+          logoCollapsed={<span style={{ fontSize: 22, fontWeight: 700, lineHeight: '28px', color: theme.palette.primary?.main }}>H</span>}
           logoTo="/dashboard"
           linkComponent={Link}
           // The logo link and the "Home" row both point at /dashboard, so the logo cannot be named "Home": two

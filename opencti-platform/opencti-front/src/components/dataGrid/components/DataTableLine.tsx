@@ -1,6 +1,5 @@
-import React, { CSSProperties, useMemo } from 'react';
-import { Skeleton, Box } from '@mui/material';
-import { Checkbox, IconButton } from '@filigran/design-system';
+import React, { CSSProperties, useMemo, useState } from 'react';
+import { Skeleton } from '@mui/material';
 import { KeyboardArrowRightOutlined } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { useNavigate } from 'react-router';
@@ -11,6 +10,7 @@ import { getMainRepresentative } from '../../../utils/defaultRepresentatives';
 import { SELECT_COLUMN_SIZE } from './DataTableHeader';
 import { useDataTableContext } from './DataTableContext';
 import { shouldOpenInNewTabMouseEvent } from 'src/utils/domEvent';
+import { Button, Checkbox } from '../../ds';
 
 const cellContainerStyle = (theme: Theme) => ({
   display: 'flex',
@@ -95,6 +95,7 @@ const DataTableLine = ({
 }: DataTableLineProps) => {
   const navigate = useNavigate();
   const theme = useTheme<Theme>();
+  const [isHovered, setIsHovered] = useState(false);
 
   const {
     columns,
@@ -174,10 +175,30 @@ const DataTableLine = ({
     }
   };
 
+  // A row is "selected" using the exact same source of truth the header's select-all
+  // checkbox and the row's own checkbox read from - see the identical expression below.
+  const isSelected = (selectAll && !((data.id || 'id') in (deSelectedElements || {})))
+    || (data.id || 'id') in (selectedElements || {});
+
+  /*
+   * Selected takes visual precedence over hover (a selected row stays visually "selected"
+   * even while the pointer is over it); otherwise hover gets its own, lighter tint.
+   * Both colors are ds/tokens.css CSS custom properties, resolved via `var(...)` - this works
+   * regardless of this file living outside `src/components/ds/`, unlike a Tailwind utility
+   * class (see ds/tokens.css:17-18): a CSS custom property reference is not Tailwind-scanned
+   * source text, so it carries no risk of silently compiling to no CSS.
+   */
   const linkStyle: CSSProperties = {
     display: 'flex',
     color: 'inherit',
-    borderBottom: `1px solid ${theme.palette.divider}`,
+    // Longhand, not the `borderBottom` shorthand: a shorthand whose color is an unresolved
+    // CSS custom property is valid in every real browser, but jsdom's style parser (used by
+    // this file's own tests) silently drops the whole shorthand to `none` when it can't
+    // resolve `var(--border)` eagerly - see DataTableLine.test.tsx's ROW_HEIGHT test.
+    borderBottomWidth: '1px',
+    borderBottomStyle: 'solid',
+    borderBottomColor: 'var(--border)',
+    backgroundColor: isSelected ? 'var(--accent)' : (isHovered ? 'var(--muted)' : undefined),
     cursor: clickable ? 'pointer' : 'unset',
   };
 
@@ -187,15 +208,14 @@ const DataTableLine = ({
   );
 
   return (
-    <Box
+    // This row is a purely presentational hover container: the row's actual interactive
+    // affordance (click/keyboard activation) lives entirely on the nested, already-focusable
+    // `<a>` below, so this element itself needs no tab stop of its own.
+    // eslint-disable-next-line jsx-a11y/interactive-supports-focus
+    <div
       role="row"
-      sx={{
-        '&:hover > a': {
-          backgroundColor: theme.palette.mode === 'dark'
-            ? 'rgba(255, 255, 255, .1)'
-            : 'rgba(0, 0, 0, .1)',
-        },
-      }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       <a
         style={linkStyle}
@@ -218,12 +238,8 @@ const DataTableLine = ({
               <Checkbox
                 aria-label={t_i18n('Select line')}
                 onClick={handleSelectLine}
-                className="mx-2"
-                checked={
-                  (selectAll
-                    && !((data.id || 'id') in (deSelectedElements || {})))
-                  || (data.id || 'id') in (selectedElements || {})
-                }
+                style={{ marginInlineStart: 8, marginInlineEnd: 8 }}
+                checked={isSelected}
               />
             )}
             {(startsWithIcon && icon) && (
@@ -253,18 +269,21 @@ const DataTableLine = ({
           >
             {actions && actions(data)}
             {endsWithNavigate && (
-              <IconButton
-                variant="default"
-                priority="tertiary"
+              <Button
+                iconOnly
+                variant="secondary"
+                appearance="ghost"
+                size="sm"
                 aria-label={t_i18n('Open link')}
                 onClick={() => (link ? navigate(link) : undefined)}
-                icon={<KeyboardArrowRightOutlined />}
-              />
+              >
+                <KeyboardArrowRightOutlined fontSize="small" />
+              </Button>
             )}
           </div>
         )}
       </a>
-    </Box>
+    </div>
   );
 };
 
