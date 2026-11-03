@@ -133,7 +133,7 @@ export const HEALTH_CHECK_REGISTRY = {
     // Only an existing user: a missing one is reported by USER_MISSING. Internal users (system...) are always active:
     // a feed or a sync without user runs as the system user, so it is never judged
     isEnabled: (_, { user }) => !!user && !user.internal,
-    getFailures: (_, { user }) => (user?.disabled ? [{ severity: IngestionHealthCheckSeverity.Blocking }] : []),
+    getFailures: (_, { user }) => (user?.user_account_active ? [] : [{ severity: IngestionHealthCheckSeverity.Blocking }]),
   },
   // An ingestion should not depend on a person: a regular user leaving or changing rights breaks it
   [HEALTH_CHECK_USER_NOT_SERVICE_ACCOUNT]: {

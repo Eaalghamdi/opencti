@@ -9,7 +9,7 @@ import { ENTITY_TYPE_CONNECTOR, ENTITY_TYPE_SYNC, ENTITY_TYPE_USER } from '../sc
 import { getResolvedIngestionHealthSettings } from '../modules/ingestionHealth/ingestionHealth-domain';
 import type { BasicStoreEntity } from '../types/store';
 import type { AuthContext, AuthUser } from '../types/user';
-import { executionContext, INGESTION_HEALTH_MANAGER_USER, INTERNAL_USERS, isUserHasCapability } from '../utils/access';
+import { executionContext, INGESTION_HEALTH_MANAGER_USER, INTERNAL_USERS, isUserAccountActive, isUserHasCapability } from '../utils/access';
 import { now } from '../utils/format';
 import type { CachedConnector } from '../modules/connector/connector-types';
 import {
@@ -38,7 +38,7 @@ import { findRegularlyPingingConnectors, isConnectorStopped } from '../modules/c
 import { isSyncRunning } from '../domain/connector';
 import { isIngestionRunning } from '../modules/ingestion/ingestion-common';
 import type { RuntimeData } from '../modules/ingestionHealth/ingestionHealth-registry';
-import { getIngestorUserId, isUserDisabled } from '../modules/ingestionHealth/ingestionHealth-registry-utils';
+import { getIngestorUserId } from '../modules/ingestionHealth/ingestionHealth-registry-utils';
 
 const INGESTION_HEALTH_MANAGER_ENABLED = booleanConf('ingestion_health_manager:enabled', true);
 const INGESTION_HEALTH_MANAGER_KEY = conf.get('ingestion_health_manager:lock_key') || 'ingestion_health_manager_lock';
@@ -214,7 +214,7 @@ export const ingestionHealthHandler = async (lock: { signal: AbortSignal }) => {
       ? {
           internal,
           user_service_account: authUser.user_service_account === true,
-          disabled: isUserDisabled(authUser),
+          user_account_active: isUserAccountActive(authUser),
           hasCapability: (capability) => isUserHasCapability(authUser, capability),
         }
       : undefined;

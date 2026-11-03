@@ -28,7 +28,6 @@ import {
   type HealthCheckCode,
 } from '../../../../src/modules/ingestionHealth/ingestionHealth-registry';
 import { CONNECTOR_LIVELINESS_GRACE_PERIOD_MS } from '../../../../src/modules/connector/connector-types';
-import { isUserDisabled } from '../../../../src/modules/ingestionHealth/ingestionHealth-registry-utils';
 import { redisGetConnectorErrors } from '../../../../src/modules/connector/connector-redis';
 import { utcDate } from '../../../../src/utils/format';
 import { IngestionHealthCheckKind, IngestionHealthCheckSeverity, IngestionHealthStatus } from '../../../../src/generated/graphql';
@@ -60,7 +59,7 @@ vi.mock('../../../../src/modules/ingestionHealth/ingestionHealth-connectorWorks'
 
 const EVALUATED_AT = '2026-10-13T12:00:00.000Z';
 const PREVIOUS_SINCE = '2026-10-12T08:00:00.000Z';
-const SERVICE_ACCOUNT = { internal: false, user_service_account: true, disabled: false, hasCapability: () => true };
+const SERVICE_ACCOUNT = { internal: false, user_service_account: true, user_account_active: true, hasCapability: () => true };
 const CONTEXT = { evaluatedAt: EVALUATED_AT, pingingConnectorsIds: new Set<string>(), user: SERVICE_ACCOUNT };
 const USER_MISSING: StoredHealthCheck = {
   health_check_code: HEALTH_CHECK_USER_MISSING,
@@ -886,8 +885,8 @@ describe('disabled health checks', () => {
 });
 
 describe('user not service account check', () => {
-  const REGULAR_USER = { internal: false, user_service_account: false, disabled: false, hasCapability: () => true };
-  const INTERNAL_USER = { internal: true, user_service_account: false, disabled: false, hasCapability: () => true };
+  const REGULAR_USER = { internal: false, user_service_account: false, user_account_active: true, hasCapability: () => true };
+  const INTERNAL_USER = { internal: true, user_service_account: false, user_account_active: true, hasCapability: () => true };
   const checksFor = (ingestor: HealthCheckIngestor, user?: HealthCheckUser) => computeIngestionHealthChecks(ingestor, { ...CONTEXT, ...NOT_PINGING, user });
   const NOT_SERVICE_ACCOUNT: StoredHealthCheck = {
     health_check_code: HEALTH_CHECK_USER_NOT_SERVICE_ACCOUNT,
@@ -937,7 +936,7 @@ describe('user not service account check', () => {
 });
 
 describe('user missing capability check', () => {
-  const WITHOUT_CAPABILITY = { internal: false, user_service_account: true, disabled: false, hasCapability: () => false };
+  const WITHOUT_CAPABILITY = { internal: false, user_service_account: true, user_account_active: true, hasCapability: () => false };
   const checksFor = (ingestor: HealthCheckIngestor, user?: HealthCheckUser) => computeIngestionHealthChecks(ingestor, { ...CONTEXT, ...NOT_PINGING, user });
   const CONNECTOR_WITH_USER = { ...CONNECTOR, connector_user_id: 'user-id' };
   const CONNECTORAPI_DESCRIPTION = 'Connectors API usage: register, ping, export push ...';
@@ -977,30 +976,13 @@ describe('user missing capability check', () => {
   });
 });
 
-describe('isUserDisabled', () => {
-  const DAY_MS = 24 * 60 * 60 * 1000;
-
-  it('should not disable an active user, with or without a lock date in the future', () => {
-    expect(isUserDisabled({ account_status: 'Active', account_lock_after_date: undefined })).toBe(false);
-    expect(isUserDisabled({ account_status: 'Active', account_lock_after_date: new Date(Date.now() + DAY_MS) })).toBe(false);
-  });
-
-  it.each(['Expired', 'Locked', 'Custom locked status'])('should disable a user whose status is %s', (status) => {
-    expect(isUserDisabled({ account_status: status, account_lock_after_date: undefined })).toBe(true);
-  });
-
-  it('should disable an active user whose lock date is past: the status is updated later by the expiration manager', () => {
-    expect(isUserDisabled({ account_status: 'Active', account_lock_after_date: new Date(Date.now() - DAY_MS) })).toBe(true);
-  });
-});
-
-describe('user disabled check', () => {
-  const DISABLED_USER = { ...SERVICE_ACCOUNT, disabled: true };
+describe('user account not active check', () => {
+  const NOT_ACTIVE_USER = { ...SERVICE_ACCOUNT, user_account_active: false };
   const checksFor = (ingestor: HealthCheckIngestor, user?: HealthCheckUser) => computeIngestionHealthChecks(ingestor, { ...CONTEXT, ...NOT_PINGING, user });
   const CONNECTOR_WITH_USER = { ...CONNECTOR, connector_user_id: 'user-id' };
 
-  it('should flag a connector whose user is disabled, with nothing to tell', () => {
-    expect(checksFor(CONNECTOR_WITH_USER, DISABLED_USER)).toEqual([{
+  it('should flag a connector whose user account is not active, with nothing to tell', () => {
+    expect(checksFor(CONNECTOR_WITH_USER, NOT_ACTIVE_USER)).toEqual([{
       health_check_code: HEALTH_CHECK_USER_ACCOUNT_NOT_ACTIVE,
       health_check_severity: IngestionHealthCheckSeverity.Blocking,
       health_check_metadata: {},
@@ -1008,20 +990,20 @@ describe('user disabled check', () => {
   });
 
   it('should make the status degraded: a configuration check never makes it critical', () => {
-    const checks = checksFor(CONNECTOR_WITH_USER, DISABLED_USER);
+    const checks = checksFor(CONNECTOR_WITH_USER, NOT_ACTIVE_USER);
     expect(computeIngestionHealthPatch({}, checks, CONTEXT)?.ingestion_health?.status).toBe(IngestionHealthStatus.Degraded);
     expect(checks.map((check) => check.health_check_severity)).toEqual([IngestionHealthCheckSeverity.Blocking]);
   });
 
-  it('should not flag a connector whose user is enabled', () => {
+  it('should not flag a connector whose user account is active', () => {
     expect(checksFor(CONNECTOR_WITH_USER, SERVICE_ACCOUNT)).toEqual([]);
   });
 
   it.each([
     ['a feed', { ...FEED, user_id: 'user-id' }],
     ['a sync', { ...SYNC, user_id: 'user-id' }],
-  ])('should flag %s whose user is disabled: the worker impersonating it is refused', (_, ingestor) => {
-    expect(checksFor(ingestor, DISABLED_USER)).toEqual([{
+  ])('should flag %s whose user account is not active: the worker impersonating it is refused', (_, ingestor) => {
+    expect(checksFor(ingestor, NOT_ACTIVE_USER)).toEqual([{
       health_check_code: HEALTH_CHECK_USER_ACCOUNT_NOT_ACTIVE,
       health_check_severity: IngestionHealthCheckSeverity.Blocking,
       health_check_metadata: {},
@@ -1036,7 +1018,7 @@ describe('user disabled check', () => {
   });
 
   it('should not judge an internal user', () => {
-    expect(checksFor(CONNECTOR_WITH_USER, { ...DISABLED_USER, internal: true })).toEqual([]);
+    expect(checksFor(CONNECTOR_WITH_USER, { ...NOT_ACTIVE_USER, internal: true })).toEqual([]);
   });
 
   it('should not judge a missing user: reported by USER_MISSING only', () => {

@@ -6,9 +6,17 @@ import { type SizedNotifEvent, type StreamProcessor } from '../database/stream/s
 import { fetchRangeNotifications, storeNotificationEvent, createStreamProcessor } from '../database/stream/stream-handler';
 import { redisGetManagerEventState, redisSetManagerEventState } from '../database/redis';
 import { lockResources } from '../lock/master-lock';
-import conf, { booleanConf, logApp, ACCOUNT_STATUS_ACTIVE } from '../config/conf';
+import conf, { booleanConf, logApp } from '../config/conf';
 import { FunctionalError, TYPE_LOCK_ERROR } from '../config/errors';
-import { executionContext, INTERNAL_USERS, isUserCanAccessStixElement, isUserCanAccessStreamUpdateEvent, isUserInPlatformOrganization, SYSTEM_USER } from '../utils/access';
+import {
+  executionContext,
+  INTERNAL_USERS,
+  isUserCanAccessStixElement,
+  isUserCanAccessStreamUpdateEvent,
+  isUserAccountActive,
+  isUserInPlatformOrganization,
+  SYSTEM_USER,
+} from '../utils/access';
 import type { DataEvent, SseEvent, StreamNotifEvent, UpdateEvent } from '../types/event';
 import type { AuthContext, AuthUser, UserOrigin } from '../types/user';
 import { utcDate } from '../utils/format';
@@ -119,14 +127,8 @@ export const isDigest = (n: ResolvedTrigger): n is ResolvedDigest => {
   return n.trigger.trigger_type === 'digest';
 };
 
-export const isNotificationRecipientActive = (user: AuthUser): boolean => {
-  // Account expiration date reached
-  if (user.account_lock_after_date && utcDate().isAfter(utcDate(user.account_lock_after_date))) {
-    return false;
-  }
-  // Account not active (disabled / inactive / expired status)
-  return user.account_status === ACCOUNT_STATUS_ACTIVE;
-};
+// Account not expired and with an active status (not disabled / inactive / expired)
+export const isNotificationRecipientActive = (user: AuthUser): boolean => isUserAccountActive(user);
 
 // Single recipient check for every notification path (triggers, playbook notifier and email components):
 // inactive/expired/disabled accounts must no longer receive any notification,

@@ -60,8 +60,8 @@ export interface HealthCheckUser {
   // Platform internal user (system...): not a user account an admin manages
   internal: boolean;
   user_service_account: boolean;
-  // The platform refuses to authenticate it: account status other than active, or past its lock date
-  disabled: boolean;
+  // The platform lets it authenticate: account status active and not past its expiration date (see isUserAccountActive)
+  user_account_active: boolean;
   // Same rule as the platform authorization (bypass, parent capabilities)
   hasCapability: (capability: string) => boolean;
 }
