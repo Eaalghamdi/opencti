@@ -110,6 +110,7 @@ export type MenuCheckboxItemProps = Omit<HTMLAttributes<HTMLDivElement>, 'onChan
   checked?: boolean;
   onCheckedChange?: (checked: boolean) => void;
   disabled?: boolean;
+  closeOnClick?: boolean;
 };
 
 // Base UI's own Menu.CheckboxItem/CheckboxItemIndicator parts render this
@@ -119,6 +120,13 @@ export type MenuCheckboxItemProps = Omit<HTMLAttributes<HTMLDivElement>, 'onChan
 // `closeOnClick` defaults to `false` for Menu.CheckboxItem (unlike
 // Menu.Item's `true`), so toggling one checkbox item leaves the menu open
 // for toggling more - the behavior Task 6's column-visibility menu needs.
+// `closeOnClick` is declared here (same as `MenuItemProps` above) so a
+// caller can ask for the non-default, closes-on-select behavior without a
+// cast - e.g. DataTablePagination.tsx's single-select rows-per-page/
+// redirection-mode submenus, which render as checkbox items purely for the
+// checked-state affordance but should still close the whole menu on pick.
+// It is not destructured below: it rides through `...rest` straight onto
+// Base UI's own `Menu.CheckboxItem`, which already supports it natively.
 export function MenuCheckboxItem({
   className,
   children,

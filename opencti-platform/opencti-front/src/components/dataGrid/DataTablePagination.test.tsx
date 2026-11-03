@@ -77,7 +77,7 @@ describe('DataTablePagination', () => {
     expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
   });
 
-  it('opens the items-per-page submenu, reflects the current page size as checked, and selecting a value calls the handler with the chosen count', async () => {
+  it('opens the items-per-page submenu, reflects the current page size as checked, and selecting a value calls the handler with the chosen count and closes the whole menu', async () => {
     // No columns -> no "Columns" submenu in between "Reset table" and "Rows per page", so one
     // ArrowDown after opening reaches the "Rows per page" submenu trigger directly.
     vi.mocked(useDataTableContext).mockReturnValue(buildContext({ columns: [] } as unknown as Partial<DataTableContextProps>));
@@ -97,9 +97,15 @@ describe('DataTablePagination', () => {
     await userEvent.click(screen.getByRole('menuitemcheckbox', { name: '50' }));
 
     expect(handleAddProperty).toHaveBeenCalledWith('pageSize', '50');
+    // Unlike the "Columns" multi-select submenu (which stays open to toggle more items), picking
+    // a rows-per-page value is single-select and closes the whole menu - matching the pre-restyle
+    // NestedMenuButton's handleClickOption, which called handleClose(0) here (keepMenuOpen was
+    // never set for this group).
+    expect(screen.queryByRole('menuitemcheckbox', { name: '25' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Reset table' })).not.toBeInTheDocument();
   });
 
-  it('opens the redirection-mode submenu and reflects the current mode as checked, and selecting a value calls the handler with the chosen mode', async () => {
+  it('opens the redirection-mode submenu and reflects the current mode as checked, and selecting a value calls the handler with the chosen mode and closes the whole menu', async () => {
     vi.mocked(useDataTableContext).mockReturnValue(buildContext({
       columns: [],
       useDataTablePaginationLocalStorage: {
@@ -128,6 +134,10 @@ describe('DataTablePagination', () => {
     await userEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Redirecting to the Content section' }));
 
     expect(handleAddProperty).toHaveBeenCalledWith('redirectionMode', 'content');
+    // Single-select, same as rows-per-page above: picking a redirection mode closes the whole
+    // menu rather than staying open for more toggles.
+    expect(screen.queryByRole('menuitemcheckbox', { name: 'Redirecting to the Knowledge section' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Reset table' })).not.toBeInTheDocument();
   });
 
   it('displays the current number-of-elements/result-count text', () => {

@@ -153,6 +153,11 @@ const DataTablePagination = ({
                   key={size}
                   checked={isActivePageSize(size)}
                   onCheckedChange={() => helpers.handleAddProperty('pageSize', size)}
+                  // Single-select, not multi-select like "Columns": picking a page size closes
+                  // the whole menu, matching the pre-restyle NestedMenuButton's
+                  // handleClickOption, which called handleClose(0) for every leaf option unless
+                  // keepMenuOpen was explicitly set (it never was, for this group).
+                  closeOnClick
                 >
                   {size}
                 </MenuCheckboxItem>
@@ -163,21 +168,30 @@ const DataTablePagination = ({
             <MenuSub>
               <MenuSubTrigger>{t_i18n('Redirection mode')}</MenuSubTrigger>
               <MenuSubContent>
+                {/*
+                  Single-select, not multi-select like "Columns": picking a redirection mode
+                  closes the whole menu, matching the pre-restyle NestedMenuButton's
+                  handleClickOption, which called handleClose(0) for every leaf option unless
+                  keepMenuOpen was explicitly set (it never was, for this group).
+                */}
                 <MenuCheckboxItem
                   checked={redirectionMode === 'overview'}
                   onCheckedChange={() => helpers.handleAddProperty('redirectionMode', 'overview')}
+                  closeOnClick
                 >
                   {t_i18n('Redirecting to the Overview section')}
                 </MenuCheckboxItem>
                 <MenuCheckboxItem
                   checked={redirectionMode === 'knowledge'}
                   onCheckedChange={() => helpers.handleAddProperty('redirectionMode', 'knowledge')}
+                  closeOnClick
                 >
                   {t_i18n('Redirecting to the Knowledge section')}
                 </MenuCheckboxItem>
                 <MenuCheckboxItem
                   checked={redirectionMode === 'content'}
                   onCheckedChange={() => helpers.handleAddProperty('redirectionMode', 'content')}
+                  closeOnClick
                 >
                   {t_i18n('Redirecting to the Content section')}
                 </MenuCheckboxItem>

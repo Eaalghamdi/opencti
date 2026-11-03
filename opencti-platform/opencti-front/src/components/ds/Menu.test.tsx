@@ -80,6 +80,30 @@ describe('Menu', () => {
     expect(screen.getByRole('menuitemcheckbox', { name: 'Show column' })).toBeInTheDocument();
   });
 
+  it('MenuCheckboxItem closes the menu on toggle when closeOnClick is explicitly set, overriding its false default', async () => {
+    const onCheckedChange = vi.fn();
+    render(
+      <Menu>
+        <MenuTrigger>
+          <button>Open menu</button>
+        </MenuTrigger>
+        <MenuContent>
+          <MenuCheckboxItem checked={false} onCheckedChange={onCheckedChange} closeOnClick>
+            Show column
+          </MenuCheckboxItem>
+        </MenuContent>
+      </Menu>,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Open menu' }));
+    const checkboxItem = await screen.findByRole('menuitemcheckbox', { name: 'Show column' });
+
+    await userEvent.click(checkboxItem);
+    expect(onCheckedChange).toHaveBeenCalledWith(true);
+    // Unlike the default-false case above, this caller asked for closes-on-select behavior
+    // (e.g. a single-select list of checkbox items), so the menu is gone after the click.
+    expect(screen.queryByRole('menuitemcheckbox', { name: 'Show column' })).not.toBeInTheDocument();
+  });
+
   it('MenuSubTrigger opens a nested MenuSubContent on activation, and the nested item activates', async () => {
     const onNestedItemClick = vi.fn();
     render(<SubmenuExample onNestedItemClick={onNestedItemClick} />);
