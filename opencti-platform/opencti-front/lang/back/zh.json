@@ -424,6 +424,7 @@
   "Feed attributes": "订阅源属性",
   "Feed or sync execution failed": "数据源或同步执行失败",
   "Feed or sync source denied access": "数据源或同步源拒绝访问",
+  "Feed or sync with execution error indicating the source cannot be reached: HTTP 401/402/403": "数据源或同步的执行错误表明无法访问源：HTTP 401/402/403",
   "Feed types": "订阅源类型",
   "Field": "字段",
   "Field ID": "字段 ID",

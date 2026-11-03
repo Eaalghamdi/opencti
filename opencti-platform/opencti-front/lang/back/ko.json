@@ -424,6 +424,7 @@
   "Feed attributes": "피드 속성",
   "Feed or sync execution failed": "피드 또는 동기화 실행에 실패했습니다",
   "Feed or sync source denied access": "피드 또는 동기화 소스가 액세스를 거부했습니다",
+  "Feed or sync with execution error indicating the source cannot be reached: HTTP 401/402/403": "소스에 연결할 수 없음을 나타내는 실행 오류가 발생한 피드 또는 동기화: HTTP 401/402/403",
   "Feed types": "피드 유형",
   "Field": "필드",
   "Field ID": "필드 ID",

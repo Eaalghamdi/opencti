@@ -3,7 +3,8 @@ import { graphql, useFragment } from 'react-relay';
 import { Field, Form, Formik } from 'formik';
 import * as Yup from 'yup';
 import Box from '@mui/material/Box';
-import { Paper, Switch } from '@filigran/design-system';
+import { InformationOutline } from 'mdi-material-ui';
+import { IconButton, Paper, Switch, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import EEChip from '@components/common/entreprise_edition/EEChip';
 import Card from '../../../../components/common/card/Card';
 import TextField from '../../../../components/TextField';
@@ -20,6 +21,7 @@ const settingsIngestionHealthFragment = graphql`
     health_checks {
       health_check_code
       health_check_label
+      health_check_description
       health_check_kind
       enabled
     }
@@ -133,7 +135,7 @@ const SettingsIngestionHealth = ({ settings }: SettingsIngestionHealthProps) => 
                   data-testid={`settings-ingestion-health-check-${check.health_check_code}`}
                   sx={{ display: 'contents' }}
                 >
-                  <Box sx={{ minWidth: 0 }}>
+                  <Box sx={{ minWidth: 0, display: 'flex', alignItems: 'center' }}>
                     <Switch
                       checked={check.enabled}
                       disabled={isSaving}
@@ -141,6 +143,20 @@ const SettingsIngestionHealth = ({ settings }: SettingsIngestionHealthProps) => 
                       // Named by the backend registry, translated with the labels of the backend schema
                       label={t_i18n(check.health_check_label)}
                     />
+                    {check.health_check_description && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <IconButton
+                            size="sm"
+                            priority="tertiary"
+                            aria-label={t_i18n('More information')}
+                            icon={<InformationOutline fontSize="small" aria-hidden />}
+                            className="ml-1"
+                          />
+                        </TooltipTrigger>
+                        <TooltipContent>{t_i18n(check.health_check_description)}</TooltipContent>
+                      </Tooltip>
+                    )}
                   </Box>
                   {/* Centered in its column: the column is as wide as its longest value */}
                   <Box component="span" sx={{ justifySelf: 'center', textAlign: 'center', fontSize: 12, color: 'text.secondary' }}>

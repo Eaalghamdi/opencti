@@ -424,6 +424,7 @@
   "Feed attributes": "Attributi del feed",
   "Feed or sync execution failed": "Esecuzione del feed o della sincronizzazione non riuscita",
   "Feed or sync source denied access": "Accesso negato dall'origine del feed o della sincronizzazione",
+  "Feed or sync with execution error indicating the source cannot be reached: HTTP 401/402/403": "Feed o sincronizzazione con un errore di esecuzione che indica che l'origine non è raggiungibile: HTTP 401/402/403",
   "Feed types": "Tipi di feed",
   "Field": "Campo",
   "Field ID": "ID campo",

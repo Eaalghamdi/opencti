@@ -424,6 +424,7 @@
   "Feed attributes": "Attributs de flux",
   "Feed or sync execution failed": "Échec de l'exécution du flux ou de la synchronisation",
   "Feed or sync source denied access": "Accès refusé par la source du flux ou de la synchronisation",
+  "Feed or sync with execution error indicating the source cannot be reached: HTTP 401/402/403": "Flux ou synchronisation avec une erreur d'execution indiquant que la source est inaccessible : HTTP 401/402/403",
   "Feed types": "Types de flux",
   "Field": "Champ",
   "Field ID": "ID du champ",

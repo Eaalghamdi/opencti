@@ -424,6 +424,7 @@
   "Feed attributes": "Параметры фида",
   "Feed or sync execution failed": "Ошибка при выполнении фида или синхронизации",
   "Feed or sync source denied access": "Источник фида или синхронизации отказал в доступе",
+  "Feed or sync with execution error indicating the source cannot be reached: HTTP 401/402/403": "Фид или синхронизация с ошибкой выполнения, указывающей на недоступность источника: HTTP 401/402/403",
   "Feed types": "Типы фидов",
   "Field": "Поле",
   "Field ID": "Идентификатор поля",

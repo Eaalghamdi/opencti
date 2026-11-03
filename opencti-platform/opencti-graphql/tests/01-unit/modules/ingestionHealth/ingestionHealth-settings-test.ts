@@ -65,8 +65,8 @@ describe('resolveIngestionHealthSettings', () => {
 });
 
 describe('toGraphqlIngestionHealthSettings', () => {
-  const enabledCheck = (code: HealthCheckCode, label: string, kind: IngestionHealthCheckKind) => (
-    { health_check_code: code, health_check_label: label, health_check_kind: kind, enabled: true }
+  const enabledCheck = (code: HealthCheckCode, label: string, kind: IngestionHealthCheckKind, description?: string) => (
+    { health_check_code: code, health_check_label: label, health_check_description: description, health_check_kind: kind, enabled: true }
   );
 
   it('should list every check of the registry with its kind, enabled when not configured', () => {
@@ -80,12 +80,19 @@ describe('toGraphqlIngestionHealthSettings', () => {
         enabledCheck(HEALTH_CHECK_USER_NOT_SERVICE_ACCOUNT, 'User is not a service account', IngestionHealthCheckKind.Configuration),
         enabledCheck(HEALTH_CHECK_HEARTBEAT_MISSING, 'No heartbeat received', IngestionHealthCheckKind.Runtime),
         enabledCheck(HEALTH_CHECK_FEED_AND_SYNC_EXECUTION_FAILED, 'Feed or sync execution failed', IngestionHealthCheckKind.Runtime),
-        enabledCheck(HEALTH_CHECK_SOURCE_ACCESS_DENIED, 'Feed or sync source denied access', IngestionHealthCheckKind.Runtime),
+        enabledCheck(HEALTH_CHECK_SOURCE_ACCESS_DENIED, 'Feed or sync source denied access', IngestionHealthCheckKind.Runtime, 'Feed or sync with execution error indicating the source cannot be reached: HTTP 401/402/403'),
         enabledCheck(HEALTH_CHECK_LAST_RUN_FAILED, 'Last run failed', IngestionHealthCheckKind.Runtime),
         enabledCheck(HEALTH_CHECK_CONNECTOR_ERROR_REPORTED, 'Connector reported an error', IngestionHealthCheckKind.Runtime),
         enabledCheck(HEALTH_CHECK_CONNECTOR_CRITICAL_ERROR_REPORTED, 'Connector reported a critical error', IngestionHealthCheckKind.Runtime),
       ],
     });
+  });
+
+  it('should give a description to the checks whose label does not tell what they look at, and only to them', () => {
+    const described = toGraphqlIngestionHealthSettings(undefined).health_checks.filter((check) => check.health_check_description !== undefined);
+    expect(described.map((check) => [check.health_check_code, check.health_check_description])).toEqual([
+      [HEALTH_CHECK_SOURCE_ACCESS_DENIED, 'Feed or sync with execution error indicating the source cannot be reached: HTTP 401/402/403'],
+    ]);
   });
 
   it('should mark the disabled checks only', () => {

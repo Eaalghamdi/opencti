@@ -424,6 +424,7 @@
   "Feed attributes": "Feed attributes",
   "Feed or sync execution failed": "Feed or sync execution failed",
   "Feed or sync source denied access": "Feed or sync source denied access",
+  "Feed or sync with execution error indicating the source cannot be reached: HTTP 401/402/403": "Feed or sync with execution error indicating the source cannot be reached: HTTP 401/402/403",
   "Feed types": "Feed types",
   "Field": "Field",
   "Field ID": "Field ID",

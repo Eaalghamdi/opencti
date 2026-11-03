@@ -52,6 +52,9 @@ export type HealthCheckCode = typeof HEALTH_CHECK_USER_MISSING
 interface BaseHealthCheckDefinition {
   // Name of the check, the same for every occurrence: shown in the platform settings, translated by the front (lang/back)
   label: string;
+  // Precise description of the check, when the label alone is not enough: shown next to the label in the platform settings,
+  // translated by the front (lang/back). Named *_label to be extracted with the labels (extract-label-keyword matches "label: '")
+  description_label?: string;
   // A failure of this check is dropped when the check named here also fails for the same ingestor:
   // the other one tells the cause, this one would only repeat it less precisely
   supersededBy?: HealthCheckCode;
@@ -184,6 +187,7 @@ export const HEALTH_CHECK_REGISTRY = {
   [HEALTH_CHECK_SOURCE_ACCESS_DENIED]: defineRuntimeCheck({
     kind: IngestionHealthCheckKind.Runtime,
     label: 'Feed or sync source denied access',
+    description_label: 'Feed or sync with execution error indicating the source cannot be reached: HTTP 401/402/403',
     message: (checkLabel) => `${checkLabel}: HTTP {http_status}`,
     // Only the failing ones: nothing is read for the others
     isEnabled: (ingestor) => FEED_AND_SYNC_ENTITY_TYPES.includes(ingestor.entity_type) && ingestor.last_execution_status === 'error',
