@@ -215,9 +215,21 @@ ${HEADER_TEMPLATE}
   const isDigest = notification.trigger_type === 'digest';
   const triggerLabel = isDigest ? (periodLabels[notification.period] || 'Periodic') + ' digest' : 'Live alert';
   const formatHealthDate = (date) => new Date(date).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' }) + ' UTC';
+  /* The data of each event of the content. A source can have the same scope twice in a digest (critical, recovered, critical):
+     the n-th event of a source and scope is the n-th of the data, the content being built from the data in its order */
+  const healthEventsData = [];
+  const healthEventOccurrences = {};
+  notification_content.forEach((contentLine) => contentLine.events.forEach((contentEvent) => {
+    const occurrenceKey = contentEvent.instance_id + '|' + contentEvent.operation;
+    const occurrence = healthEventOccurrences[occurrenceKey] || 0;
+    healthEventOccurrences[occurrenceKey] = occurrence + 1;
+    const matchingData = data.filter((entry) => entry.instance && entry.instance.id === contentEvent.instance_id && entry.type === contentEvent.operation);
+    healthEventsData.push({ contentEvent, eventData: matchingData[occurrence] });
+  }));
   /* What the health manager put in the context of the event: the details of the failure, and since when the current status lasts */
   const readHealthEvent = (contentEvent) => {
-    const eventData = data.find((entry) => entry.instance && entry.instance.id === contentEvent.instance_id && entry.type === contentEvent.operation);
+    const healthEventData = healthEventsData.find((entry) => entry.contentEvent === contentEvent);
+    const eventData = healthEventData && healthEventData.eventData;
     const eventInstance = (eventData && eventData.instance) || {};
     const statusChange = eventInstance.ingestion_health_changes || {};
     const criticalMessages = statusChange.critical_messages || [];

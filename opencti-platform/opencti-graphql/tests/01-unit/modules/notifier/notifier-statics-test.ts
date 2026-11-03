@@ -179,5 +179,36 @@ describe('Ingestion health default mailer', () => {
       expect(rendered).not.toContain('View connector');
       expect(rendered).not.toContain('See all sources that need attention');
     });
+
+    it('should show the context of each occurrence when a source fails twice in the period, not the one of its first failure', async () => {
+      // critical -> recovered -> critical for the same feed: the content holds its two critical events, in the order of the data
+      const events = [
+        { operation: 'critical', changes: { critical_messages: ['Feed execution failed: HTTP 401'], status_since: '2026-10-28T06:14:00.000Z' } },
+        { operation: 'recovered', changes: { status_since: '2026-10-28T09:00:00.000Z' } },
+        { operation: 'critical', changes: { critical_messages: ['Feed execution failed: HTTP 500'], status_since: '2026-10-28T15:30:00.000Z' } },
+      ];
+      const templateData = sanitizeNotificationData({
+        notification_content: [{ title: 'Abuse feed', events: events.map(({ operation }) => ({ operation, entity_type: 'IngestionCsv', instance_id: 'feed-id' })) }],
+        notification: DIGEST,
+        data: events.map(({ operation, changes }) => ({
+          notification_id: 'trigger-id',
+          type: operation,
+          message: '',
+          instance: { id: 'feed-id', entity_type: 'IngestionCsv', ingestion_health_changes: changes },
+        })),
+        settings: { platform_title: 'OpenCTI' },
+        platform_uri: 'https://opencti.local',
+      });
+      const rendered = await safeRender(HEALTH_EMAIL_TEMPLATE, templateData);
+      // Each critical line with its own error and detection date, in order
+      const first = rendered.indexOf('HTTP 401');
+      const second = rendered.indexOf('HTTP 500');
+      expect(first).toBeGreaterThan(-1);
+      expect(second).toBeGreaterThan(first);
+      expect(rendered.indexOf('HTTP 401', first + 1)).toBe(-1);
+      expect(rendered).toContain('28 Oct 2026, 06:14 UTC');
+      expect(rendered).toContain('28 Oct 2026, 09:00 UTC');
+      expect(rendered).toContain('28 Oct 2026, 15:30 UTC');
+    });
   });
 });
