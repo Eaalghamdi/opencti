@@ -120,4 +120,62 @@ describe('Menu', () => {
     const { container } = render(<Example />);
     expect(container.querySelectorAll('button')).toHaveLength(1);
   });
+
+  describe('MenuContent anchor override', () => {
+    // jsdom has no real layout engine, so Floating UI's computed position always collapses to
+    // the same "no size, origin" numbers unless something in the chain is given a concrete rect
+    // to compute from. Mocking `getBoundingClientRect` on the anchor element supplies that,
+    // without needing real pixel-perfect e2e layout.
+    const rectAt = (x: number, y: number): DOMRect => ({
+      x, y, top: y, left: x, right: x, bottom: y, width: 0, height: 0, toJSON: () => ({}),
+    }) as DOMRect;
+
+    // Base UI's `Menu.Positioner` renders a `role="menu"` popup nested one level inside its own
+    // `role="presentation"` wrapper, which is the element Floating UI actually moves (it also
+    // carries a `data-side` attribute, same as the inner popup, so the lookup has to go via the
+    // popup's parent, not the nearest `[data-side]` ancestor - that would stop one level too
+    // early, on the popup itself).
+    const findPositioner = (popup: HTMLElement) => popup.closest('[role="menu"]')?.parentElement as HTMLElement;
+
+    it("positions against the trigger when no `anchor` is given, preserving every other MenuContent caller's default", async () => {
+      render(<Example />);
+      const trigger = screen.getByRole('button', { name: 'Open menu' });
+      trigger.getBoundingClientRect = () => rectAt(111, 222);
+
+      await userEvent.click(trigger);
+      const popup = await screen.findByText('Allow');
+      const positioner = findPositioner(popup);
+      expect(positioner).not.toBeNull();
+      // Computed straight from the trigger's mocked rect (the default `side="bottom"`'s 4px
+      // `sideOffset` only shifts the y axis, hence 222 here but not 111): proves this still
+      // flows through Floating UI's default "anchor to the trigger" resolution when `anchor`
+      // is omitted.
+      expect(positioner.style.transform).toBe('translate(111px, 218px)');
+    });
+
+    it('positions against an externally supplied `anchor` instead, with no `MenuTrigger` of its own', async () => {
+      const externalAnchor = document.createElement('div');
+      externalAnchor.getBoundingClientRect = () => rectAt(333, 444);
+      document.body.appendChild(externalAnchor);
+
+      // Exactly DataTableHeaders.tsx's own shape: no `MenuTrigger` anywhere in this tree - the
+      // menu's `open` state and its anchor are both driven externally.
+      render(
+        <Menu open>
+          <MenuContent anchor={externalAnchor}>
+            <MenuItem>Allow</MenuItem>
+          </MenuContent>
+        </Menu>,
+      );
+
+      const popup = await screen.findByText('Allow');
+      const positioner = findPositioner(popup);
+      expect(positioner).not.toBeNull();
+      // Computed from the *external* anchor's mocked rect (not the trigger's, since there is
+      // none) - proves the `anchor` prop actually reaches Base UI's Positioner.
+      expect(positioner.style.transform).toBe('translate(333px, 440px)');
+
+      externalAnchor.remove();
+    });
+  });
 });

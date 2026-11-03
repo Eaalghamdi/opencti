@@ -81,13 +81,16 @@ export function MenuContent({ anchor, ...props }: MenuContentProps) {
   return <MenuPopupContent anchor={anchor} {...props} />;
 }
 
-export type MenuItemProps = HTMLAttributes<HTMLDivElement> & { disabled?: boolean };
+export type MenuItemProps = HTMLAttributes<HTMLDivElement> & { disabled?: boolean; closeOnClick?: boolean };
 
 // Base UI's Menu.Item exposes an `onClick` handler (there is no separate
 // `onSelect` prop on the installed build - confirmed by reading
 // menu/item/MenuItem.d.ts), which this wrapper passes straight through via
 // `...rest`. It closes the menu on activation by default (`closeOnClick`
-// defaults to `true`), matching a plain action item.
+// defaults to `true`), matching a plain action item. `closeOnClick` itself is
+// typed explicitly (rather than left to flow through `...rest` untyped) so a
+// caller that needs the non-default, stays-open behavior - e.g.
+// DataTableHeaders.tsx's Sort Asc/Desc items - can ask for it without a cast.
 export function MenuItem({ className, children, disabled, ...rest }: MenuItemProps) {
   return (
     <BaseMenu.Item

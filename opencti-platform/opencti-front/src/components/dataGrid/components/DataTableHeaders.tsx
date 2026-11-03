@@ -143,8 +143,15 @@ const DataTableHeaders: FunctionComponent<DataTableHeadersProps> = ({
                     {t_i18n(c.label)}
                   </MenuCheckboxItem>
                 ))}
-                {activeColumn?.isSortable && (<MenuItem onClick={() => onSort(activeColumn.id, true)}>{t_i18n('Sort Asc')}</MenuItem>)}
-                {activeColumn?.isSortable && (<MenuItem onClick={() => onSort(activeColumn.id, false)}>{t_i18n('Sort Desc')}</MenuItem>)}
+                {/*
+                  `ds/MenuItem` closes the menu on click by default (`closeOnClick`, true
+                  unless overridden - see ds/Menu.tsx); the old MUI `MenuItem` never closed on
+                  its own, and these two never called `handleClose()` themselves, so picking a
+                  sort direction left the menu open. `closeOnClick={false}` keeps that exact
+                  behavior rather than silently changing it via the primitive swap.
+                */}
+                {activeColumn?.isSortable && (<MenuItem closeOnClick={false} onClick={() => onSort(activeColumn.id, true)}>{t_i18n('Sort Asc')}</MenuItem>)}
+                {activeColumn?.isSortable && (<MenuItem closeOnClick={false} onClick={() => onSort(activeColumn.id, false)}>{t_i18n('Sort Desc')}</MenuItem>)}
                 {(activeColumn && availableFilterKeys?.includes(activeColumn.id)) && (
                   <MenuItem onClick={() => onAddFilter(activeColumn.id)}>
                     {t_i18n('Add filtering')}

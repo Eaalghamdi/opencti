@@ -141,6 +141,21 @@ describe('DataTableHeaders', () => {
       expect(createdItem).toHaveAttribute('aria-checked', 'false');
     });
 
+    it('choosing a sort direction calls onSort and leaves the menu open, matching the pre-restyle MUI menu\'s behavior', async () => {
+      renderHeaders();
+      await openColumnMenu();
+
+      const sortAsc = await screen.findByRole('menuitem', { name: 'Sort Asc' });
+      await userEvent.click(sortAsc);
+
+      expect(onSort).toHaveBeenCalledWith('name', true);
+      // Deliberate: ds/MenuItem closes on click by default, but the old MUI-based menu never
+      // closed itself on a Sort Asc/Desc click (neither item ever called the close handler),
+      // so `closeOnClick={false}` is passed on both to preserve that exact behavior.
+      expect(screen.getByRole('menuitem', { name: 'Sort Asc' })).toBeInTheDocument();
+      expect(screen.getByRole('menuitemcheckbox', { name: 'Name' })).toBeInTheDocument();
+    });
+
     it("toggling a column's visibility off and back on round-trips correctly through localStorage persistence", async () => {
       const STORAGE_KEY = 'headers-visibility-test';
 
