@@ -215,6 +215,20 @@ describe('handleDigestNotifications', () => {
     expect(vi.mocked(extractStixRepresentativeForUser)).not.toHaveBeenCalled();
   });
 
+  it('still sends the other digests due at the same time when one of them fails', async () => {
+    const otherDigestTrigger = { ...digestTrigger, internal_id: 'digest-2', id: 'digest-2', trigger_ids: ['trigger-B'] } as unknown as BasicStoreEntityTrigger;
+    const resolveFromCache = (_ctx: AuthContext, _user: AuthUser, type: string) => {
+      return Promise.resolve(type === ENTITY_TYPE_TRIGGER ? [digestTrigger, otherDigestTrigger] : [digestUser]);
+    };
+    vi.mocked(getEntitiesListFromCache).mockImplementation(resolveFromCache as unknown as typeof getEntitiesListFromCache);
+    driveBatches([[liveEvent('trigger-A', DIGEST_USER_ID), liveEvent('trigger-B', DIGEST_USER_ID)]]);
+    // The first digest fails when it is stored
+    vi.mocked(storeNotificationEvent).mockRejectedValueOnce(new Error('Redis unavailable'));
+    await expect(handleDigestNotifications({} as AuthContext)).resolves.toBeUndefined();
+    const storedDigestIds = vi.mocked(storeNotificationEvent).mock.calls.map((call) => (call[1] as unknown as { notification_id: string }).notification_id);
+    expect(storedDigestIds).toEqual(['digest-1', 'digest-2']);
+  });
+
   it('does not emit a digest event when no collected event matches the digest', async () => {
     driveBatches([[liveEvent('trigger-other', DIGEST_USER_ID)]]);
     await handleDigestNotifications({} as AuthContext);
