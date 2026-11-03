@@ -722,11 +722,16 @@ export const handleDigestNotifications = async (context: AuthContext) => {
           const target = convertToNotificationUser(user, notifiers);
           const dataPromises = userNotifications.map(async (n) => {
             const userTarget = n.targets.find((t) => t.user.user_id === user.internal_id);
+            // A knowledge event carries a STIX object: its message is computed for the user.
+            // An activity event carries the activity context instead: its message was computed when it matched, as the live alert uses it
+            const message = 'extensions' in n.data
+              ? await generateNotificationMessageForInstance(context, user, n.data)
+              : (userTarget?.message ?? '');
             return ({
               notification_id: n.notification_id,
               type: userTarget?.type ?? type,
               instance: n.data,
-              message: await generateNotificationMessageForInstance(context, user, n.data),
+              message,
               origin: n.origin,
               streamMessage: n.streamMessage,
             });
