@@ -129,6 +129,11 @@ const createHttpServer = async () => {
   wsServer.on('error', (e) => {
     throw e;
   });
+  // Like express does for every http request, give the upgrade request the express request API
+  // (ip resolved behind the trusted proxies, header()...). Registered before the graphql-ws listener.
+  wsServer.on('connection', (_socket, request) => {
+    Object.setPrototypeOf(request, app.request);
+  });
   const serverCleanup = useServer({
     schema,
     context: extractWsSessionContext,
