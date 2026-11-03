@@ -52,6 +52,24 @@ describe('Ingestion health default mailer', () => {
       expect(rendered).toBe('[digest] Ingestion health — 2 sources need attention, 1 recovered');
     });
 
+    it('should count a source once in the subject of a digest, even with several events in the period', async () => {
+      const degradedThenCritical = { title: 'AlienVault', events: [
+        { operation: 'degraded', entity_type: 'Connector', instance_id: 'connector-id' },
+        { operation: 'critical', entity_type: 'Connector', instance_id: 'connector-id' },
+      ] };
+      const rendered = await safeRender(HEALTH_EMAIL_TITLE, buildTemplateData([degradedThenCritical], DIGEST));
+      expect(rendered).toBe('[digest] Ingestion health — 1 source needs attention');
+    });
+
+    it('should count a source by its last event in the period: recovered after a failure, it no longer needs attention', async () => {
+      const criticalThenRecovered = { title: 'Abuse feed', events: [
+        { operation: 'critical', entity_type: 'IngestionCsv', instance_id: 'feed-id' },
+        { operation: 'recovered', entity_type: 'IngestionCsv', instance_id: 'feed-id' },
+      ] };
+      const rendered = await safeRender(HEALTH_EMAIL_TITLE, buildTemplateData([criticalThenRecovered, connectorEvent], DIGEST));
+      expect(rendered).toBe('[digest] Ingestion health — 1 source needs attention, 1 recovered');
+    });
+
     it('should title a digest as such, even with a single event, and only the non empty counts', async () => {
       const rendered = await safeRender(HEALTH_EMAIL_TITLE, buildTemplateData([connectorEvent], DIGEST));
       expect(rendered).toBe('[digest] Ingestion health — 1 source needs attention');

@@ -162,8 +162,10 @@ export const STATIC_NOTIFIER_HEALTH_EMAIL = '19b97b2d-9fa5-496b-95b6-3f3703c9a95
 // For the ingestion health activity events: the scope, the ingestion and a link to its overview (the front resolveLink routes)
 // A live alert with one event: its scope and its ingestion. Otherwise: how many sources need attention and how many recovered
 export const HEALTH_EMAIL_TITLE = '<% const healthEvents = notification_content.reduce((allEvents, contentLine) => allEvents.concat(contentLine.events), []); %>'
-  + '<% const attentionCount = healthEvents.filter((contentEvent) => contentEvent.operation !== \'recovered\').length; %>'
-  + '<% const normalCount = healthEvents.length - attentionCount; %>'
+  // A source is counted once, by its last event in the period (the events of a source are in their order): recovered after a failure, it no longer needs attention
+  + '<% const sourceLastEvents = healthEvents.filter((contentEvent, index) => !healthEvents.slice(index + 1).some((laterEvent) => laterEvent.instance_id === contentEvent.instance_id)); %>'
+  + '<% const attentionCount = sourceLastEvents.filter((contentEvent) => contentEvent.operation !== \'recovered\').length; %>'
+  + '<% const normalCount = sourceLastEvents.length - attentionCount; %>'
   + '<% const isDigest = notification.trigger_type === \'digest\'; %>'
   + '<% const subjectPrefix = isDigest ? \'[digest]\' : \'[live]\'; %>'
   + '<% const scopeLabels = { critical: \'Critical\', degraded: \'Degraded\', recovered: \'Recovered\' }; %>'
