@@ -5,6 +5,7 @@ import { platformFamily } from './registry/platform-configPreset-registry';
 import { brandingFamily } from './registry/branding-configPreset-registry';
 import { messagesFamily } from './registry/messages-configPreset-registry';
 import { hiddenEntityTypesFamily } from './registry/hiddenEntityTypes-configPreset-registry';
+import { markingsFamily } from './registry/markings-configPreset-registry';
 import { rolesFamily } from './registry/roles-configPreset-registry';
 import { groupsFamily } from './registry/groups-configPreset-registry';
 import { policiesFamily } from './registry/policies-configPreset-registry';
@@ -18,6 +19,7 @@ export const CONFIG_PRESET_FAMILIES: ConfigPresetFamilyDefinition[] = [
   brandingFamily,
   messagesFamily,
   hiddenEntityTypesFamily,
+  markingsFamily,
   rolesFamily,
   groupsFamily,
   policiesFamily,
