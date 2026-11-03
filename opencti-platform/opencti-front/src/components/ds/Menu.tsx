@@ -47,11 +47,11 @@ export function MenuTrigger({ children }: MenuTriggerProps) {
 // in the installed build. Styled like ds/Select.tsx's/ds/Combobox.tsx's
 // listbox popups (same border/radius/shadow tokens, `p-1` list padding), per
 // the brief - no new visual language.
-function MenuPopupContent({ className, children, ...rest }: HTMLAttributes<HTMLDivElement>) {
+function MenuPopupContent({ className, children, anchor, ...rest }: HTMLAttributes<HTMLDivElement> & { anchor?: Element | null }) {
   return (
     <BaseMenu.Portal>
       {/* Above MUI modal hosts (1300) - same overlay level and reason as ds/Select's and ds/Combobox's popups. */}
-      <BaseMenu.Positioner sideOffset={4} className="z-[var(--fds-z-overlay,1400)]">
+      <BaseMenu.Positioner sideOffset={4} anchor={anchor} className="z-[var(--fds-z-overlay,1400)]">
         <BaseMenu.Popup
           className={cn(
             'bg-[var(--popover)] text-[var(--popover-foreground)] border border-[var(--border)] rounded-[var(--ds-radius-md)] p-1 text-sm',
@@ -66,10 +66,19 @@ function MenuPopupContent({ className, children, ...rest }: HTMLAttributes<HTMLD
   );
 }
 
-export type MenuContentProps = HTMLAttributes<HTMLDivElement>;
+export type MenuContentProps = HTMLAttributes<HTMLDivElement> & {
+  /**
+   * Overrides the popup's anchor from the default (the nearest MenuTrigger) to an arbitrary
+   * DOM element. Needed when the element that actually opens the menu isn't a `MenuTrigger`
+   * living in this menu's own render tree - e.g. DataTableHeaders.tsx anchors its
+   * column-visibility menu to whichever column header's own button (rendered by a sibling
+   * component, DataTableHeader.tsx) was clicked.
+   */
+  anchor?: Element | null;
+};
 
-export function MenuContent(props: MenuContentProps) {
-  return <MenuPopupContent {...props} />;
+export function MenuContent({ anchor, ...props }: MenuContentProps) {
+  return <MenuPopupContent anchor={anchor} {...props} />;
 }
 
 export type MenuItemProps = HTMLAttributes<HTMLDivElement> & { disabled?: boolean };
