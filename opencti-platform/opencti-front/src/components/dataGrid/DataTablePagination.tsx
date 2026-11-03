@@ -1,16 +1,12 @@
-import Typography from '@mui/material/Typography';
-import Tooltip from '@mui/material/Tooltip';
-import Box from '@mui/material/Box';
-import React, { type Dispatch, type SetStateAction, Suspense, useCallback, useEffect } from 'react';
-import { ArrowLeft, ArrowRight } from '@mui/icons-material';
-import { ButtonGroup } from '@mui/material';
-import IconButton from '@common/button/IconButton';
+import React, { type Dispatch, type SetStateAction, useCallback, useEffect } from 'react';
 import { TableTuneIcon } from 'filigran-icon';
 import FiligranIcon from '@components/common/FiligranIcon';
+import { Menu, MenuCheckboxItem, MenuContent, MenuItem, MenuSub, MenuSubContent, MenuSubTrigger, MenuTrigger, Pagination, Tooltip } from '../ds';
 import { useFormatter } from '../i18n';
 import { NumberOfElements } from '../../utils/hooks/useLocalStorage';
-import NestedMenuButton from '../nested_menu/NestedMenuButton';
 import { useDataTableContext } from './components/DataTableContext';
+
+const PAGE_SIZE_OPTIONS = ['10', '25', '50', '100'];
 
 const DataTablePagination = ({
   page,
@@ -33,7 +29,6 @@ const DataTablePagination = ({
       viewStorage: {
         pageSize,
         numberOfElements: storedNOE = { original: 0, number: 0, symbol: '' },
-        redirectionMode,
       },
       helpers,
     },
@@ -70,174 +65,108 @@ const DataTablePagination = ({
     )));
   };
 
-  const computeDataColumnOptions = () => (columns ?? [])
-    .filter(({ id }) => !['select', 'navigate', 'icon'].includes(id))
-    .map((column) => ({
-      value: column.id,
-      label: t_i18n(column.label ?? column.id),
-      selected: column.visible,
-      onClick: () => handleToggleVisibility(column.id),
-      menuLevel: 1,
-      keepMenuOpen: true,
-    }));
-
   const resetTable = () => {
     resetColumns();
     helpers.handleAddProperty('pageSize', '25');
   };
-  const nestedMenuOptions = [
-    {
-      value: 'menu-reset',
-      label: t_i18n('Reset table'),
-      onClick: () => resetTable(),
-      menuLevel: 0,
-    },
-    ...(columns.length > 0
-      ? [
-          {
-            value: 'menu-columns',
-            label: t_i18n('Columns'),
-            menuLevel: 0,
-            nestedOptions: computeDataColumnOptions(),
-          }] : []),
-    {
-      value: 'menu-rows-per-page',
-      label: t_i18n('Rows per page'),
-      menuLevel: 0,
-      nestedOptions: [
-        {
-          value: '10',
-          onClick: () => helpers.handleAddProperty('pageSize', '10'),
-          selected: pageSize === '10',
-          menuLevel: 1,
-        },
-        {
-          value: '25',
-          onClick: () => helpers.handleAddProperty('pageSize', '25'),
-          selected: !pageSize || pageSize === '25',
-          menuLevel: 1,
-        },
-        {
-          value: '50',
-          onClick: () => helpers.handleAddProperty('pageSize', '50'),
-          selected: pageSize === '50',
-          menuLevel: 1,
-        },
-        {
-          value: '100',
-          onClick: () => helpers.handleAddProperty('pageSize', '100'),
-          selected: pageSize === '100',
-          menuLevel: 1,
-        },
-      ],
-    },
-    ...(redirectionModeEnabled
-      ? [
-          {
-            label: t_i18n('Redirection mode'),
-            menuLevel: 0,
-            value: 'redirect-mode',
-            nestedOptions: [
-              {
-                label: t_i18n('Redirecting to the Overview section'),
-                value: 'overview',
-                menuLevel: 1,
-                onClick: () => helpers.handleAddProperty('redirectionMode', 'overview'),
-                selected: redirectionMode === 'overview',
-              },
-              {
-                label: t_i18n('Redirecting to the Knowledge section'),
-                value: 'knowledge',
-                menuLevel: 1,
-                onClick: () => helpers.handleAddProperty('redirectionMode', 'knowledge'),
-                selected: redirectionMode === 'knowledge',
-              },
-              {
-                label: t_i18n('Redirecting to the Content section'),
-                value: 'content',
-                menuLevel: 1,
-                onClick: () => helpers.handleAddProperty('redirectionMode', 'content'),
-                selected: redirectionMode === 'content',
-              },
-            ],
-          },
-        ]
-      : []),
-  ];
+
+  const visibleColumnOptions = (columns ?? []).filter(({ id }) => !['select', 'navigate', 'icon'].includes(id));
 
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        borderRadius: 1,
-        border: 1,
-        borderColor: 'divider',
-        height: 36,
-      }}
-    >
-      <ButtonGroup
-        size="small"
-        variant="text"
-        color="pagination"
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <Pagination
+        onPrevious={() => fetchMore('previous')}
+        onNext={() => fetchMore('forward')}
+        previousDisabled={firstItem === 1}
+        nextDisabled={lastItem === numberOfElements.original}
       >
-        <IconButton
-          onClick={() => fetchMore('previous')}
-          variant="tertiary"
-          size="default"
-          disabled={firstItem === 1}
-          aria-label={t_i18n('Previous')}
-          style={{
-            padding: 0,
-            borderRight: 'none',
-            minWidth: 24,
-          }}
-        >
-          <ArrowLeft />
-        </IconButton>
         <Tooltip
-          title={(
+          trigger={(
+            <span data-testid="dataTablePaginationResultCount" style={{ display: 'inline-flex', alignItems: 'center' }}>
+              <span>{`${lastItem ? firstItem : 0} - ${lastItem} `}</span>
+              <span style={{ opacity: 0.6 }}>
+                {`/ ${numberOfElements.number}${numberOfElements.symbol}`}
+              </span>
+            </span>
+          )}
+          content={(
             <div>
               <strong>{`${numberOfElements.original}`}</strong>{' '}
               {t_i18n('entitie(s)')}
             </div>
           )}
-        >
-          <Box
-            sx={{
-              display: 'flex',
+        />
+      </Pagination>
+      <Menu>
+        <MenuTrigger>
+          <button
+            type="button"
+            aria-label={t_i18n('Table settings')}
+            // `ds/tokens.css`'s Tailwind utilities only compile for files under `src/components/ds/`
+            // (see `ds/tokens.css:17-18`'s `@source "./"`), so this file-local trigger is styled via
+            // inline style + the library's own CSS custom properties, not a Tailwind class.
+            style={{
+              display: 'inline-flex',
               alignItems: 'center',
-              borderRight: '0 !important',
-              color: 'pagination.main',
+              justifyContent: 'center',
+              width: 36,
+              height: 36,
+              border: 'none',
+              background: 'transparent',
+              cursor: 'pointer',
+              borderRadius: 'var(--ds-radius-md)',
             }}
           >
-            <Typography variant="body2">
-              <span>{`${lastItem ? firstItem : 0} - ${lastItem} `}</span>
-              <span style={{ opacity: 0.6 }}>
-                {`/ ${numberOfElements.number}${numberOfElements.symbol}`}
-              </span>
-            </Typography>
-          </Box>
-        </Tooltip>
-        <IconButton
-          onClick={() => fetchMore('forward')}
-          variant="tertiary"
-          size="default"
-          aria-label={t_i18n('Next')}
-          disabled={lastItem === numberOfElements.original}
-          style={{ paddingLeft: 0, paddingRight: 0, minWidth: 24 }}
-        >
-          <ArrowRight />
-        </IconButton>
-      </ButtonGroup>
-      <Suspense>
-        <NestedMenuButton
-          menuButtonLabel={t_i18n('Table settings')}
-          menuButtonChildren={<FiligranIcon icon={TableTuneIcon} size={20} />}
-          options={nestedMenuOptions}
-          menuLevels={2}
-        />
-      </Suspense>
-    </Box>
+            <FiligranIcon icon={TableTuneIcon} size={20} />
+          </button>
+        </MenuTrigger>
+        <MenuContent>
+          <MenuItem onClick={resetTable}>{t_i18n('Reset table')}</MenuItem>
+          {columns.length > 0 && (
+            <MenuSub>
+              <MenuSubTrigger>{t_i18n('Columns')}</MenuSubTrigger>
+              <MenuSubContent>
+                {visibleColumnOptions.map((column) => (
+                  <MenuCheckboxItem
+                    key={column.id}
+                    checked={column.visible}
+                    onCheckedChange={() => handleToggleVisibility(column.id)}
+                  >
+                    {t_i18n(column.label ?? column.id)}
+                  </MenuCheckboxItem>
+                ))}
+              </MenuSubContent>
+            </MenuSub>
+          )}
+          <MenuSub>
+            <MenuSubTrigger>{t_i18n('Rows per page')}</MenuSubTrigger>
+            <MenuSubContent>
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <MenuItem key={size} onClick={() => helpers.handleAddProperty('pageSize', size)}>
+                  {size}
+                </MenuItem>
+              ))}
+            </MenuSubContent>
+          </MenuSub>
+          {redirectionModeEnabled && (
+            <MenuSub>
+              <MenuSubTrigger>{t_i18n('Redirection mode')}</MenuSubTrigger>
+              <MenuSubContent>
+                <MenuItem onClick={() => helpers.handleAddProperty('redirectionMode', 'overview')}>
+                  {t_i18n('Redirecting to the Overview section')}
+                </MenuItem>
+                <MenuItem onClick={() => helpers.handleAddProperty('redirectionMode', 'knowledge')}>
+                  {t_i18n('Redirecting to the Knowledge section')}
+                </MenuItem>
+                <MenuItem onClick={() => helpers.handleAddProperty('redirectionMode', 'content')}>
+                  {t_i18n('Redirecting to the Content section')}
+                </MenuItem>
+              </MenuSubContent>
+            </MenuSub>
+          )}
+        </MenuContent>
+      </Menu>
+    </div>
   );
 };
 
