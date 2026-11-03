@@ -4,11 +4,8 @@ import StixCoreRelationshipsExports from '@components/common/stix_core_relations
 import StixDomainObjectsExports from '@components/common/stix_domain_objects/StixDomainObjectsExports';
 import StixCyberObservablesExports from '@components/observations/stix_cyber_observables/StixCyberObservablesExports';
 import { FileDownloadOutlined } from '@mui/icons-material';
-import { Stack, ToggleButtonGroup } from '@mui/material';
-import { Theme } from '@mui/material/styles';
-import ToggleButton from '@mui/material/ToggleButton';
-import Tooltip from '@mui/material/Tooltip';
-import { useTheme } from '@mui/material/styles';
+import { ToggleButtonGroup } from '@mui/material';
+import { Theme, useTheme } from '@mui/material/styles';
 import { ExportContext } from '../../utils/ExportContextProvider';
 import { isFilterGroupNotEmpty, canonicalizeFilterGroupForBackend } from '../../utils/filters/filtersUtils';
 import { FilterGroup } from '../../utils/filters/filtersHelpers-types';
@@ -18,6 +15,7 @@ import Security from '../../utils/Security';
 import { export_max_size } from '../../utils/utils';
 import FilterIconButton from '../FilterIconButton';
 import { useFormatter } from '../i18n';
+import { Button, Tooltip } from '../ds';
 import { useDataTableContext } from './components/DataTableContext';
 import DataTablePagination from './DataTablePagination';
 import { DataTableDisplayFiltersProps, DataTableFiltersProps, DataTableVariant } from './dataTableTypes';
@@ -160,51 +158,53 @@ const DataTableFilters = ({
             />
           )}
 
-          <ToggleButtonGroup
-            size="small"
-            color="primary"
-            value={currentView || 'lines'}
-            exclusive={true}
-            onChange={(_, value) => {
-              if (value && value === 'export') {
-                helpers.handleToggleExports();
-              } else if (value && value !== 'export-csv') {
-                helpers.handleChangeView(value);
-              }
-            }}
-            sx={{
-              '&:empty': {
-                display: 'none',
-              },
-            }}
-          >
-            {additionalToggleButtons && [...additionalToggleButtons]}
-            {!exportDisabled && (
-              <ToggleButton value="export" aria-label="export">
-                <Tooltip title={t_i18n('Open export panel')}>
-                  <FileDownloadOutlined
-                    fontSize="small"
-                  />
-                </Tooltip>
-              </ToggleButton>
-            )}
-          </ToggleButtonGroup>
+          {/*
+            `additionalToggleButtons` are raw MUI `ToggleButton` elements built by other,
+            out-of-scope call sites (e.g. Malwares.tsx, Campaigns.tsx) that rely on MUI's
+            `ToggleButtonGroupContext` for their `selected` state and `onChange` wiring - there
+            is no `onClick` of their own. A `ds/` equivalent of `ToggleButtonGroup` doesn't exist
+            yet, and migrating it would mean rewriting those call sites too, well beyond this
+            file. So this group stays MUI, scoped to only the buttons it must carry; the "export"
+            action below (owned entirely by this file) is pulled out and restyled onto `ds/`.
+          */}
+          {additionalToggleButtons && additionalToggleButtons.length > 0 && (
+            <ToggleButtonGroup
+              size="small"
+              color="primary"
+              value={currentView || 'lines'}
+              exclusive={true}
+              onChange={(_, value) => {
+                if (value && value !== 'export-csv') {
+                  helpers.handleChangeView(value);
+                }
+              }}
+            >
+              {[...additionalToggleButtons]}
+            </ToggleButtonGroup>
+          )}
+          {!exportDisabled && (
+            <Tooltip
+              trigger={(
+                <Button
+                  iconOnly
+                  variant="secondary"
+                  appearance="ghost"
+                  size="sm"
+                  aria-label={t_i18n('Open export panel')}
+                  onClick={() => helpers.handleToggleExports()}
+                >
+                  <FileDownloadOutlined fontSize="small" />
+                </Button>
+              )}
+              content={t_i18n('Open export panel')}
+            />
+          )}
 
-          {
-            additionalHeaderButtons && (
-              <Stack
-                direction="row"
-                sx={{
-                  gap: 1,
-                  '&:empty': {
-                    display: 'none',
-                  },
-                }}
-              >
-                {[...additionalHeaderButtons]}
-              </Stack>
-            )
-          }
+          {additionalHeaderButtons && additionalHeaderButtons.length > 0 && (
+            <div style={{ display: 'flex', gap: theme.spacing(1) }}>
+              {[...additionalHeaderButtons]}
+            </div>
+          )}
 
           {createButton}
         </div>
