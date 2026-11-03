@@ -189,6 +189,30 @@ describe('handleDigestNotifications', () => {
     expect(digestEvent.data).toHaveLength(2); // only the two trigger-A events
   });
 
+  it('takes the message of an activity event from its target: its data is the activity context, not a STIX object', async () => {
+    // As stored by the activity manager: the message is computed when the event matches the live trigger
+    const activityEvent: ActivityNotificationEvent = {
+      version: '1',
+      type: 'live',
+      notification_id: 'trigger-A',
+      targets: [{
+        user: { user_id: DIGEST_USER_ID, user_email: '', notifiers: [], user_service_account: false },
+        type: 'critical',
+        message: '`Ingestion health manager` reports `Abuse feed` (IngestionCsv) as critical',
+      }],
+      data: { id: 'feed-1', representative: { main: 'Abuse feed', secondary: '' } },
+      origin: {},
+    };
+    driveBatches([[activityEvent as unknown as KnowledgeNotificationEvent, liveEvent('trigger-A', DIGEST_USER_ID)]]);
+    await handleDigestNotifications({} as AuthContext);
+    expect(vi.mocked(storeNotificationEvent)).toHaveBeenCalledTimes(1);
+    const digestEvent = vi.mocked(storeNotificationEvent).mock.calls[0][1] as unknown as { data: Array<{ type: string; message: string }> };
+    expect(digestEvent.data[0]).toMatchObject({ type: 'critical', message: '`Ingestion health manager` reports `Abuse feed` (IngestionCsv) as critical' });
+    // The knowledge event next to it still gets its message computed for the user
+    expect(digestEvent.data[1].message).toBe('[report] repr');
+    expect(vi.mocked(extractStixRepresentativeForUser)).toHaveBeenCalledTimes(1);
+  });
+
   it('takes the message of a login activity from its target: its data is the bare authentication context, without id', async () => {
     // As stored by the activity manager for a login: the context data of the action, the message prefixed with the user name
     const loginEvent: ActivityNotificationEvent = {
