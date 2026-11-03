@@ -35,7 +35,7 @@ export const REQUIRED_CAPABILITY_BY_INGESTOR_TYPE: Record<string, string> = {
 };
 
 // endregion
-// region USER_DISABLED
+// region USER_ACCOUNT_NOT_ACTIVE
 
 /**
  * Whether the platform refuses to authenticate the user: same rule as the validation of a user at login,

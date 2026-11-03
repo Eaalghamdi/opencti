@@ -6,8 +6,7 @@ import type { BasicStoreIdentifier } from '../types/store';
 import type { AuthorizedMembers } from '../utils/authorizedMembers';
 import { DefaultFormating, type Formating, humanizeDate } from '../utils/humanize';
 import type { StixId, StixObject } from '../types/stix-2-1-common';
-import { TEST_MODE } from '../config/conf';
-import { CUSTOM_FIELDS_FEATURE_FLAG, INGESTION_HEALTH_FEATURE_FLAG, TEST_MODE } from '../config/conf';
+import { INGESTION_HEALTH_FEATURE_FLAG, TEST_MODE } from '../config/conf';
 import type { OpenCTIFile } from '../modules/internal/document/document-types';
 
 export const shortMapping = {

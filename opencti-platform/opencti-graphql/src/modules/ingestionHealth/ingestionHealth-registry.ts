@@ -25,11 +25,10 @@ import type {
   RuntimeDataReadContext,
   SourceIngestionHealthContext,
 } from './ingestionHealth-types';
-import { findCapabilityDescription } from '../../schema/capabilities';
 
 export const HEALTH_CHECK_USER_MISSING = 'USER_MISSING';
 export const HEALTH_CHECK_USER_MISSING_CAPABILITY = 'USER_MISSING_CAPABILITY';
-export const HEALTH_CHECK_USER_DISABLED = 'USER_DISABLED';
+export const HEALTH_CHECK_USER_ACCOUNT_NOT_ACTIVE = 'USER_ACCOUNT_NOT_ACTIVE';
 export const HEALTH_CHECK_HEARTBEAT_MISSING = 'HEARTBEAT_MISSING';
 export const HEALTH_CHECK_USER_NOT_SERVICE_ACCOUNT = 'USER_NOT_SERVICE_ACCOUNT';
 export const HEALTH_CHECK_FEED_AND_SYNC_EXECUTION_FAILED = 'FEED_AND_SYNC_EXECUTION_FAILED';
@@ -43,7 +42,7 @@ export type HealthCheckCode = typeof HEALTH_CHECK_USER_MISSING
   | typeof HEALTH_CHECK_CONNECTOR_ERROR_REPORTED
   | typeof HEALTH_CHECK_CONNECTOR_CRITICAL_ERROR_REPORTED
   | typeof HEALTH_CHECK_USER_MISSING_CAPABILITY
-  | typeof HEALTH_CHECK_USER_DISABLED
+  | typeof HEALTH_CHECK_USER_ACCOUNT_NOT_ACTIVE
   | typeof HEALTH_CHECK_HEARTBEAT_MISSING
   | typeof HEALTH_CHECK_USER_NOT_SERVICE_ACCOUNT
   | typeof HEALTH_CHECK_FEED_AND_SYNC_EXECUTION_FAILED
@@ -102,7 +101,6 @@ export const HEALTH_CHECK_REGISTRY = {
   [HEALTH_CHECK_USER_MISSING]: {
     kind: IngestionHealthCheckKind.Configuration,
     label: 'User is missing',
-    severity: IngestionHealthCheckSeverity.Advisory,
     // A required user, or an optional one that was set: it must exist
     isEnabled: (ingestor) => isUserRequiredForIngestor(ingestor) || !!getIngestorUserId(ingestor),
     getFailures: (_, { user }) => (user ? [] : [{ severity: IngestionHealthCheckSeverity.Advisory }]),
@@ -127,39 +125,20 @@ export const HEALTH_CHECK_REGISTRY = {
       }];
     },
   },
-  // The platform refuses to authenticate a disabled user (locked, expired...): a connector can neither register nor ping,
+  // The platform refuses to authenticate a user whose account is not active (expired, locked, disabled...): a connector can neither register nor ping,
   // and the worker impersonating the user of a feed or a sync is refused too.
-  [HEALTH_CHECK_USER_DISABLED]: {
+  [HEALTH_CHECK_USER_ACCOUNT_NOT_ACTIVE]: {
     kind: IngestionHealthCheckKind.Configuration,
-    label: 'User is disabled',
-    // Only an existing user: a missing one is reported by USER_MISSING. Internal users (system...) are never disabled:
+    label: 'User account is not active',
+    // Only an existing user: a missing one is reported by USER_MISSING. Internal users (system...) are always active:
     // a feed or a sync without user runs as the system user, so it is never judged
     isEnabled: (_, { user }) => !!user && !user.internal,
     getFailures: (_, { user }) => (user?.disabled ? [{ severity: IngestionHealthCheckSeverity.Blocking }] : []),
-  },
-  // Without it the platform refuses what the ingestor does (a connector cannot register nor ping)
-  [HEALTH_CHECK_USER_MISSING_CAPABILITY]: {
-    kind: IngestionHealthCheckKind.Configuration,
-    label: 'User lacks required capability',
-    severity: IngestionHealthCheckSeverity.Blocking,
-    // The description of the capability, translated by the front as in the roles
-    message: () => 'User lacks required capability: "{capability_description}"',
-    // Only an existing user: a missing one is reported by USER_MISSING. Internal users (system...) are not judged
-    isEnabled: (ingestor, { user }) => !!user && !user.internal && ingestor.entity_type in REQUIRED_CAPABILITY_BY_ENTITY_TYPE,
-    getFailure: (ingestor, { user }) => {
-      const capability = REQUIRED_CAPABILITY_BY_ENTITY_TYPE[ingestor.entity_type];
-      if (user?.hasCapability(capability)) {
-        return null;
-      }
-      // Its description, as shown in the roles. A capability without description is shown by its name
-      return { capability, capability_description: findCapabilityDescription(capability) ?? capability };
-    },
   },
   // An ingestion should not depend on a person: a regular user leaving or changing rights breaks it
   [HEALTH_CHECK_USER_NOT_SERVICE_ACCOUNT]: {
     kind: IngestionHealthCheckKind.Configuration,
     label: 'User is not a service account',
-    severity: IngestionHealthCheckSeverity.Advisory,
     // Only an existing user: a missing one is reported by USER_MISSING. Internal users (system...) are not judged
     isEnabled: (_, { user }) => !!user && !user.internal,
     getFailures: (_, { user }) => (user?.user_service_account ? [] : [{ severity: IngestionHealthCheckSeverity.Advisory }]),
@@ -168,7 +147,6 @@ export const HEALTH_CHECK_REGISTRY = {
   [HEALTH_CHECK_HEARTBEAT_MISSING]: defineRuntimeCheck({
     kind: IngestionHealthCheckKind.Runtime,
     label: 'No heartbeat received',
-    severity: IngestionHealthCheckSeverity.Blocking,
     // Only the running connectors pinging continuously: the others would be missing their heartbeat between two runs
     isEnabled: (ingestor, { pingingConnectorsIds }) => pingingConnectorsIds.has(ingestor.internal_id),
     // The heartbeats of every connector are read at once: the ingestors are not needed

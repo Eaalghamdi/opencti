@@ -21,11 +21,10 @@ import {
   HEALTH_CHECK_LAST_RUN_FAILED,
   HEALTH_CHECK_REGISTRY,
   HEALTH_CHECK_SOURCE_ACCESS_DENIED,
-  HEALTH_CHECK_USER_DISABLED,
+  HEALTH_CHECK_USER_ACCOUNT_NOT_ACTIVE,
   HEALTH_CHECK_USER_MISSING,
   HEALTH_CHECK_USER_MISSING_CAPABILITY,
   HEALTH_CHECK_USER_NOT_SERVICE_ACCOUNT,
-  type HealthCheckCode,
   type HealthCheckCode,
 } from '../../../../src/modules/ingestionHealth/ingestionHealth-registry';
 import { CONNECTOR_LIVELINESS_GRACE_PERIOD_MS } from '../../../../src/modules/connector/connector-types';
@@ -1002,7 +1001,7 @@ describe('user disabled check', () => {
 
   it('should flag a connector whose user is disabled, with nothing to tell', () => {
     expect(checksFor(CONNECTOR_WITH_USER, DISABLED_USER)).toEqual([{
-      health_check_code: HEALTH_CHECK_USER_DISABLED,
+      health_check_code: HEALTH_CHECK_USER_ACCOUNT_NOT_ACTIVE,
       health_check_severity: IngestionHealthCheckSeverity.Blocking,
       health_check_metadata: {},
     }]);
@@ -1023,7 +1022,7 @@ describe('user disabled check', () => {
     ['a sync', { ...SYNC, user_id: 'user-id' }],
   ])('should flag %s whose user is disabled: the worker impersonating it is refused', (_, ingestor) => {
     expect(checksFor(ingestor, DISABLED_USER)).toEqual([{
-      health_check_code: HEALTH_CHECK_USER_DISABLED,
+      health_check_code: HEALTH_CHECK_USER_ACCOUNT_NOT_ACTIVE,
       health_check_severity: IngestionHealthCheckSeverity.Blocking,
       health_check_metadata: {},
     }]);
@@ -1038,43 +1037,6 @@ describe('user disabled check', () => {
 
   it('should not judge an internal user', () => {
     expect(checksFor(CONNECTOR_WITH_USER, { ...DISABLED_USER, internal: true })).toEqual([]);
-  });
-
-  it('should not judge a missing user: reported by USER_MISSING only', () => {
-    expect(checksFor({ ...CONNECTOR, connector_user_id: 'deleted-user-id' })).toEqual([USER_MISSING]);
-  });
-});
-
-describe('user missing capability check', () => {
-  const WITHOUT_CAPABILITY = { internal: false, user_service_account: true, hasCapability: () => false };
-  const checksFor = (ingestor: HealthCheckIngestor, user?: HealthCheckUser) => computeIngestionHealthChecks(ingestor, { ...CONTEXT, ...NOT_PINGING, user });
-  const CONNECTOR_WITH_USER = { ...CONNECTOR, connector_user_id: 'user-id' };
-  const CONNECTORAPI_DESCRIPTION = 'Connectors API usage: register, ping, export push ...';
-
-  it('should flag a connector whose user lacks CONNECTORAPI, with the description of the capability in the message', () => {
-    const checks = checksFor(CONNECTOR_WITH_USER, WITHOUT_CAPABILITY);
-    const metadata = { capability: 'CONNECTORAPI', capability_description: CONNECTORAPI_DESCRIPTION };
-    expect(checks).toEqual([{ health_check_code: HEALTH_CHECK_USER_MISSING_CAPABILITY, health_check_metadata: metadata }]);
-    expect(toGraphqlHealthChecks(checks, CONNECTOR.entity_type)[0].health_check_metadata).toEqual(metadata);
-    expect(toGraphqlHealthChecks(checks, CONNECTOR.entity_type)[0].health_check_message).toBe('User lacks required capability: "{capability_description}"');
-  });
-
-  it('should ask the user for CONNECTORAPI only', () => {
-    const hasCapability = vi.fn(() => true);
-    checksFor(CONNECTOR_WITH_USER, { ...SERVICE_ACCOUNT, hasCapability });
-    expect(hasCapability).toHaveBeenCalledWith('CONNECTORAPI');
-  });
-
-  it('should not flag a connector whose user has the capability', () => {
-    expect(checksFor(CONNECTOR_WITH_USER, SERVICE_ACCOUNT)).toEqual([]);
-  });
-
-  it('should not judge a feed: no capability is required', () => {
-    expect(checksFor({ ...FEED, user_id: 'user-id' }, WITHOUT_CAPABILITY)).toEqual([]);
-  });
-
-  it('should not judge an internal user', () => {
-    expect(checksFor(CONNECTOR_WITH_USER, { ...WITHOUT_CAPABILITY, internal: true })).toEqual([]);
   });
 
   it('should not judge a missing user: reported by USER_MISSING only', () => {
