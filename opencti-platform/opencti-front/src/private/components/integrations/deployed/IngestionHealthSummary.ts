@@ -24,7 +24,7 @@ export interface HealthIssue {
   severity: HealthIssueSeverity;
   // First failing check of the severity of the status, worded by getHealthCheckMessage; null when the status carries none
   check: HealthCheckMessageSource | null;
-  // Failing checks, whatever their severity, that are not shown: displayed as (+x) next to the check
+  // Failing checks, whatever their severity, besides the one shown: displayed as (+x) next to the check, 0 when no check is shown
   othersCount: number;
 }
 
@@ -54,6 +54,8 @@ export const readHealthIssue = (key?: IngestionHealthSummary_ingestionHealth$key
     const isCritical = check.health_check_kind === 'runtime' && check.health_check_severity === 'blocking';
     return isCritical === (status === 'critical');
   });
-  // The others are counted over all the checks, whatever their severity
-  return { severity: status, check: sameSeverityChecks[0] ?? null, othersCount: Math.max(healthChecks.length - 1, 0) };
+  const check = sameSeverityChecks[0] ?? null;
+  // The others are counted over all the checks, whatever their severity, but the one shown.
+  // None without a check shown: the count is displayed next to it
+  return { severity: status, check, othersCount: check ? healthChecks.length - 1 : 0 };
 };
