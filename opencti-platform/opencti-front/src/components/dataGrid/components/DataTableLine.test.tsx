@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, useLocation } from 'react-router';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import DataTableLine from './DataTableLine';
 import { useDataTableContext } from './DataTableContext';
@@ -32,7 +32,13 @@ const column: DataTableColumn = {
 const row = { id: 'row-1' };
 const data = { id: 'row-1', name: 'Entity one' };
 
-const onToggleEntity = vi.fn();
+// Same event contract as the real `onToggleEntity` (src/utils/hooks/useEntityToggle.ts): it
+// stops propagation and prevents default on the event it is given, which is what keeps the
+// checkbox's own click from also reaching the row's onClick.
+const onToggleEntity = vi.fn((_entity: unknown, event?: React.SyntheticEvent) => {
+  event?.stopPropagation();
+  event?.preventDefault();
+});
 const onToggleShiftEntity = vi.fn();
 
 const buildContext = (overrides: Partial<DataTableContextProps> = {}) => ({
@@ -66,12 +72,19 @@ const buildContext = (overrides: Partial<DataTableContextProps> = {}) => ({
   ...overrides,
 } as unknown as DataTableContextProps);
 
+// Renders the router's current pathname so a test can tell whether a click navigated away.
+const LocationProbe = () => {
+  const location = useLocation();
+  return <div data-testid="location">{location.pathname}</div>;
+};
+
 const renderLine = (
   theme = createTheme(),
 ) => render(
-  <MemoryRouter>
+  <MemoryRouter initialEntries={['/list']}>
     <ThemeProvider theme={theme}>
       <DataTableLine row={row} index={0} onToggleShiftEntity={onToggleShiftEntity} />
+      <LocationProbe />
     </ThemeProvider>
   </MemoryRouter>,
 );
@@ -110,6 +123,64 @@ describe('DataTableLine', () => {
     await userEvent.click(checkbox);
     expect(onToggleEntity).toHaveBeenCalledTimes(1);
     expect(onToggleEntity).toHaveBeenCalledWith(data, expect.anything());
+  });
+
+  // Regression: Base UI's checkbox forwards its click to a hidden native <input> rendered
+  // beside it (`inputRef.current.click()`); that second click bubbled to the row's own
+  // onClick independently of the checkbox's own (stopped) click.
+  it('a navigable row: clicking the checkbox toggles selection once and does not navigate', async () => {
+    vi.mocked(useDataTableContext).mockReturnValue(buildContext({
+      getComputeLink: () => '/dashboard/entity/row-1',
+      disableNavigation: false,
+      onLineClick: undefined,
+      selectOnLineClick: false,
+    }));
+    renderLine();
+    expect(getRowAnchor()).toHaveAttribute('href', '/dashboard/entity/row-1');
+
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Select line' }));
+
+    expect(onToggleEntity).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('location')).toHaveTextContent(/^\/list$/);
+  });
+
+  it('a navigable row still navigates when clicked outside the checkbox', async () => {
+    vi.mocked(useDataTableContext).mockReturnValue(buildContext({
+      getComputeLink: () => '/dashboard/entity/row-1',
+      disableNavigation: false,
+    }));
+    renderLine();
+    await userEvent.click(getRowAnchor());
+    expect(onToggleEntity).not.toHaveBeenCalled();
+    expect(screen.getByTestId('location')).toHaveTextContent(/^\/dashboard\/entity\/row-1$/);
+  });
+
+  it('a selectOnLineClick row: clicking the checkbox toggles selection exactly once', async () => {
+    vi.mocked(useDataTableContext).mockReturnValue(buildContext({
+      getComputeLink: () => '/dashboard/entity/row-1',
+      disableNavigation: false,
+      selectOnLineClick: true,
+    }));
+    renderLine();
+
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Select line' }));
+
+    expect(onToggleEntity).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('location')).toHaveTextContent(/^\/list$/);
+  });
+
+  it('a row with onLineClick: clicking the checkbox does not also trigger onLineClick', async () => {
+    const onLineClick = vi.fn();
+    vi.mocked(useDataTableContext).mockReturnValue(buildContext({
+      disableNavigation: false,
+      onLineClick,
+    }));
+    renderLine();
+
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Select line' }));
+
+    expect(onToggleEntity).toHaveBeenCalledTimes(1);
+    expect(onLineClick).not.toHaveBeenCalled();
   });
 
   it("the row's hover state is visually distinct from its default state", () => {

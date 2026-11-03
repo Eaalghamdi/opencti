@@ -71,7 +71,7 @@ export type MenuContentProps = HTMLAttributes<HTMLDivElement> & {
    * Overrides the popup's anchor from the default (the nearest MenuTrigger) to an arbitrary
    * DOM element. Needed when the element that actually opens the menu isn't a `MenuTrigger`
    * living in this menu's own render tree - e.g. DataTableHeaders.tsx anchors its
-   * column-visibility menu to whichever column header's own button (rendered by a sibling
+   * column menu (sort/filter) to whichever column header's own button (rendered by a sibling
    * component, DataTableHeader.tsx) was clicked.
    */
   anchor?: Element | null;
@@ -119,7 +119,8 @@ export type MenuCheckboxItemProps = Omit<HTMLAttributes<HTMLDivElement>, 'onChan
 // render their own selected-state indicator rather than sharing one.
 // `closeOnClick` defaults to `false` for Menu.CheckboxItem (unlike
 // Menu.Item's `true`), so toggling one checkbox item leaves the menu open
-// for toggling more - the behavior Task 6's column-visibility menu needs.
+// for toggling more - the behavior DataTablePagination.tsx's column-visibility
+// submenu needs.
 // `closeOnClick` is declared here (same as `MenuItemProps` above) so a
 // caller can ask for the non-default, closes-on-select behavior without a
 // cast - e.g. DataTablePagination.tsx's single-select rows-per-page/

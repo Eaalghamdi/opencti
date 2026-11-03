@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+// fds:keep-mui test-only: stands in for the MUI ToggleButtons real call sites pass into DataTableFilters' ToggleButtonGroup, which stays MUI in this restyle
 import ToggleButton from '@mui/material/ToggleButton';
 import DataTableFilters from './DataTableFilters';
 import { useDataTableContext } from './components/DataTableContext';

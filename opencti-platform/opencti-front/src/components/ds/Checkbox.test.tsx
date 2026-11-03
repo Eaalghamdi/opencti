@@ -46,6 +46,46 @@ describe('Checkbox', () => {
     expect(onCheckedChange).toHaveBeenCalledWith(true);
   });
 
+  // Base UI's Checkbox.Root handles a click by calling `.click()` on a hidden native
+  // <input> rendered beside it. That second, programmatic click is a separate event that
+  // bubbles to any clickable ancestor on its own, so a consumer stopping propagation of the
+  // checkbox's own click could not stop it.
+  it('a single click delivers exactly one click to a clickable ancestor', async () => {
+    const onAncestorClick = vi.fn();
+    const onCheckedChange = vi.fn();
+    render(
+      // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
+      <div onClick={onAncestorClick}>
+        <Checkbox aria-label="Select row" onCheckedChange={onCheckedChange} />
+      </div>,
+    );
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Select row' }));
+    expect(onCheckedChange).toHaveBeenCalledTimes(1);
+    expect(onCheckedChange).toHaveBeenCalledWith(true);
+    // The checkbox's own click still bubbles (consumers may rely on it); the hidden input's
+    // echo of that click does not.
+    expect(onAncestorClick).toHaveBeenCalledTimes(1);
+    expect(onAncestorClick.mock.calls[0][0].target).toBe(screen.getByRole('checkbox', { name: 'Select row' }));
+  });
+
+  it('a click whose propagation the consumer stops never reaches a clickable ancestor', async () => {
+    const onAncestorClick = vi.fn();
+    const onCheckedChange = vi.fn();
+    render(
+      // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
+      <div onClick={onAncestorClick}>
+        <Checkbox
+          aria-label="Select row"
+          onClick={(event) => event.stopPropagation()}
+          onCheckedChange={onCheckedChange}
+        />
+      </div>,
+    );
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Select row' }));
+    expect(onCheckedChange).toHaveBeenCalledWith(true);
+    expect(onAncestorClick).not.toHaveBeenCalled();
+  });
+
   it('does not call onCheckedChange when disabled', async () => {
     const onCheckedChange = vi.fn();
     render(<Checkbox aria-label="Select row" disabled onCheckedChange={onCheckedChange} />);

@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createTheme, ThemeOptions, ThemeProvider } from '@mui/material/styles';
 import DataTableHeaders from './DataTableHeaders';
@@ -130,15 +130,34 @@ describe('DataTableHeaders', () => {
     });
   });
 
-  describe('column-visibility menu', () => {
-    it('opens and lists every column with its current visibility as a checkbox item', async () => {
+  describe('column menu', () => {
+    it('shows only the sort items for a sortable column, with no column-visibility list', async () => {
       renderHeaders();
       await openColumnMenu();
 
-      const nameItem = await screen.findByRole('menuitemcheckbox', { name: 'Name' });
-      const createdItem = screen.getByRole('menuitemcheckbox', { name: 'Created' });
-      expect(nameItem).toHaveAttribute('aria-checked', 'true');
-      expect(createdItem).toHaveAttribute('aria-checked', 'false');
+      expect(await screen.findByRole('menuitem', { name: 'Sort Asc' })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: 'Sort Desc' })).toBeInTheDocument();
+      // Not filterable in this context (`availableFilterKeys: []`).
+      expect(screen.queryByRole('menuitem', { name: 'Add filtering' })).not.toBeInTheDocument();
+      // The pre-restyle menu never rendered a per-column visibility list (its only source was
+      // dead code gated behind a column id no column has); that lives in "Table settings".
+      expect(screen.queryAllByRole('menuitemcheckbox')).toHaveLength(0);
+      expect(screen.getAllByRole('menuitem')).toHaveLength(2);
+    });
+
+    it('shows "Add filtering" for a filterable column, calls onAddFilter and closes the menu', async () => {
+      vi.mocked(useDataTableContext).mockReturnValue(buildContext({
+        availableFilterKeys: ['name'],
+      } as unknown as Partial<DataTableContextProps>));
+      renderHeaders();
+      await openColumnMenu();
+
+      const addFilter = await screen.findByRole('menuitem', { name: 'Add filtering' });
+      expect(screen.getAllByRole('menuitem')).toHaveLength(3);
+      await userEvent.click(addFilter);
+
+      expect(onAddFilter).toHaveBeenCalledWith('name');
+      await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
     });
 
     it('choosing a sort direction calls onSort and leaves the menu open, matching the pre-restyle MUI menu\'s behavior', async () => {
@@ -153,53 +172,10 @@ describe('DataTableHeaders', () => {
       // closed itself on a Sort Asc/Desc click (neither item ever called the close handler),
       // so `closeOnClick={false}` is passed on both to preserve that exact behavior.
       expect(screen.getByRole('menuitem', { name: 'Sort Asc' })).toBeInTheDocument();
-      expect(screen.getByRole('menuitemcheckbox', { name: 'Name' })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: 'Sort Desc' })).toBeInTheDocument();
     });
 
-    it("toggling a column's visibility off and back on round-trips correctly through localStorage persistence", async () => {
-      const STORAGE_KEY = 'headers-visibility-test';
-
-      // Mirrors (in miniature) how DataTableComponent.tsx actually persists column
-      // visibility: a `columns` state, flowed through context as `setColumns`, synced to
-      // `window.localStorage` via an effect keyed off `columns`. This lets the assertions
-      // below check the real localStorage-backed value, not merely the DOM checkbox state.
-      function Harness() {
-        const [columns, setColumnsState] = useState<DataTableColumn[]>([nameColumn, createdColumn]);
-
-        useEffect(() => {
-          window.localStorage.setItem(
-            STORAGE_KEY,
-            JSON.stringify(Object.fromEntries(columns.map((c) => [c.id, { visible: c.visible }]))),
-          );
-        }, [columns]);
-
-        vi.mocked(useDataTableContext).mockReturnValue(buildContext({ columns, setColumns: setColumnsState }));
-
-        return <DataTableHeaders dataTableToolBarComponent={undefined} />;
-      }
-
-      render(<ThemeProvider theme={testTheme}><Harness /></ThemeProvider>);
-
-      const readPersistedVisibility = (columnId: string) => {
-        const persisted = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? '{}');
-        return persisted[columnId]?.visible;
-      };
-
-      expect(readPersistedVisibility('name')).toBe(true);
-
-      await openColumnMenu();
-      const nameItem = await screen.findByRole('menuitemcheckbox', { name: 'Name' });
-
-      await userEvent.click(nameItem);
-      expect(readPersistedVisibility('name')).toBe(false);
-      expect(screen.getByRole('menuitemcheckbox', { name: 'Name' })).toHaveAttribute('aria-checked', 'false');
-
-      await userEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Name' }));
-      expect(readPersistedVisibility('name')).toBe(true);
-      expect(screen.getByRole('menuitemcheckbox', { name: 'Name' })).toHaveAttribute('aria-checked', 'true');
-    });
-
-    it('is keyboard navigable: Tab to the column-menu button, Enter to open, Arrow keys between items, Space to toggle', async () => {
+    it('is keyboard navigable: Tab to the column-menu button, Enter to open, Arrow keys between items, Enter to activate', async () => {
       vi.mocked(useDataTableContext).mockReturnValue(buildContext({
         startsWithAction: false,
         columns: [nameColumn],
@@ -215,28 +191,24 @@ describe('DataTableHeaders', () => {
       expect(kebab).toHaveFocus();
 
       await userEvent.keyboard('{Enter}');
-      const nameItem = await screen.findByRole('menuitemcheckbox', { name: 'Name' });
+      const sortAsc = await screen.findByRole('menuitem', { name: 'Sort Asc' });
+      const sortDesc = screen.getByRole('menuitem', { name: 'Sort Desc' });
 
       // Unlike a menu opened through its own `MenuTrigger` (which auto-highlights the first
       // item), this menu has no `MenuTrigger` of its own - its real trigger button lives in a
       // sibling component, DataTableHeader.tsx - so nothing is highlighted yet on open; the
-      // first arrow key both highlights and moves to the first item, "Name".
+      // first arrow key both highlights and moves to the first item, "Sort Asc".
       await userEvent.keyboard('{ArrowDown}');
-      expect(nameItem).toHaveAttribute('data-highlighted');
+      expect(sortAsc).toHaveAttribute('data-highlighted');
 
-      await userEvent.keyboard('{ArrowDown}'); // moves the highlight onto "Sort Asc"
-      expect(nameItem).not.toHaveAttribute('data-highlighted');
-      await userEvent.keyboard('{ArrowUp}'); // moves it back onto "Name"
-      expect(nameItem).toHaveAttribute('data-highlighted');
+      await userEvent.keyboard('{ArrowDown}'); // moves the highlight onto "Sort Desc"
+      expect(sortDesc).toHaveAttribute('data-highlighted');
+      expect(sortAsc).not.toHaveAttribute('data-highlighted');
+      await userEvent.keyboard('{ArrowUp}'); // moves it back onto "Sort Asc"
+      expect(sortAsc).toHaveAttribute('data-highlighted');
 
-      // This test's context mock is static (unlike the dedicated persistence test above), so
-      // toggling won't re-render the item unchecked; what matters here is that Space activates
-      // the highlighted checkbox item and reaches the real toggle logic with the right result.
-      expect(nameItem).toHaveAttribute('aria-checked', 'true');
-      await userEvent.keyboard(' ');
-      expect(setColumns).toHaveBeenCalledWith(expect.arrayContaining([
-        expect.objectContaining({ id: 'name', visible: false }),
-      ]));
+      await userEvent.keyboard('{Enter}');
+      expect(onSort).toHaveBeenCalledWith('name', true);
     });
   });
 

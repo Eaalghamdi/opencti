@@ -1,7 +1,7 @@
 import React, { type Dispatch, type SetStateAction, useCallback, useEffect } from 'react';
 import { TableTuneIcon } from 'filigran-icon';
 import FiligranIcon from '@components/common/FiligranIcon';
-import { Menu, MenuCheckboxItem, MenuContent, MenuItem, MenuSub, MenuSubContent, MenuSubTrigger, MenuTrigger, Pagination, Tooltip } from '../ds';
+import { Button, Menu, MenuCheckboxItem, MenuContent, MenuItem, MenuSub, MenuSubContent, MenuSubTrigger, MenuTrigger, Pagination, Tooltip } from '../ds';
 import { useFormatter } from '../i18n';
 import { NumberOfElements } from '../../utils/hooks/useLocalStorage';
 import { useDataTableContext } from './components/DataTableContext';
@@ -106,26 +106,16 @@ const DataTablePagination = ({
       </Pagination>
       <Menu>
         <MenuTrigger>
-          <button
-            type="button"
+          {/* Same icon-only ghost button as the export button and row actions, so it gets the library's hover/focus-visible states. */}
+          <Button
+            iconOnly
+            variant="secondary"
+            appearance="ghost"
+            size="sm"
             aria-label={t_i18n('Table settings')}
-            // `ds/tokens.css`'s Tailwind utilities only compile for files under `src/components/ds/`
-            // (see `ds/tokens.css:17-18`'s `@source "./"`), so this file-local trigger is styled via
-            // inline style + the library's own CSS custom properties, not a Tailwind class.
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 36,
-              height: 36,
-              border: 'none',
-              background: 'transparent',
-              cursor: 'pointer',
-              borderRadius: 'var(--ds-radius-md)',
-            }}
           >
             <FiligranIcon icon={TableTuneIcon} size={20} />
-          </button>
+          </Button>
         </MenuTrigger>
         <MenuContent>
           <MenuItem onClick={resetTable}>{t_i18n('Reset table')}</MenuItem>

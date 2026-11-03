@@ -1,18 +1,17 @@
-import React, { CSSProperties, FunctionComponent, useMemo, useRef, useState } from 'react';
+import React, { CSSProperties, FunctionComponent, useRef, useState } from 'react';
 import { PopoverProps } from '@mui/material/Popover';
 import Box from '@mui/material/Box';
 import { UNKNOWN_ENTITIES_LOCAL_STORAGE_KEY } from '@components/SearchBulkUnknownEntities';
 import { DataTableColumn, DataTableHeadersProps } from '../dataTableTypes';
 import DataTableHeader, { SELECT_COLUMN_SIZE } from './DataTableHeader';
 import { useDataTableContext } from './DataTableContext';
-import { Checkbox, Menu, MenuCheckboxItem, MenuContent, MenuItem } from '../../ds';
+import { Checkbox, Menu, MenuContent, MenuItem } from '../../ds';
 
 const DataTableHeaders: FunctionComponent<DataTableHeadersProps> = ({
   dataTableToolBarComponent,
 }) => {
   const {
     columns,
-    setColumns,
     useDataTableToggle: {
       selectAll,
       numberOfSelectedElements,
@@ -43,27 +42,6 @@ const DataTableHeaders: FunctionComponent<DataTableHeadersProps> = ({
     setAnchorEl(null);
     setActiveColumn(undefined);
   };
-
-  // Flips `visible`, defaulting a never-set one to true first (`?? true`) so the very first
-  // toggle has something concrete to flip. The previous `currentColumn.visible ?? true` (no
-  // `!`) never actually toggled an already-boolean value - harmless only because its one call
-  // site was gated behind a column id ('todo-navigate') no column ever has, so it never ran.
-  // That gate is gone below (see `draggableColumns`): this list is now always reachable, so the
-  // flip has to be real.
-  const handleToggleVisibility = (columnId: string) => {
-    const newColumns = [...columns];
-    const currentColumn = newColumns.find(({ id }) => id === columnId);
-    if (!currentColumn) {
-      return;
-    }
-    currentColumn.visible = !(currentColumn.visible ?? true);
-    setColumns(newColumns);
-  };
-
-  // Every real column (not the special 'select'/'navigate'/'icon' slots), regardless of which
-  // column's own menu button was clicked - this is a "manage columns" list, not scoped to the
-  // active column.
-  const draggableColumns = useMemo(() => columns.filter(({ id }) => !['select', 'navigate', 'icon'].includes(id)), [columns]);
 
   const hasSelectedElements = numberOfSelectedElements > 0 || selectAll;
   const checkboxStyle: CSSProperties = {
@@ -134,15 +112,13 @@ const DataTableHeaders: FunctionComponent<DataTableHeadersProps> = ({
               }}
             >
               <MenuContent anchor={anchorEl as Element | null}>
-                {draggableColumns.map((c) => (
-                  <MenuCheckboxItem
-                    key={c.id}
-                    checked={c.visible}
-                    onCheckedChange={() => handleToggleVisibility(c.id)}
-                  >
-                    {t_i18n(c.label)}
-                  </MenuCheckboxItem>
-                ))}
+                {/*
+                  Only the items this menu could actually show before the restyle. The old
+                  drag-and-drop column list was gated behind a column id ('todo-navigate') that
+                  no column ever has, so it never rendered; it is not replaced by a
+                  column-visibility list here. Column visibility lives in DataTablePagination.tsx's
+                  "Table settings" menu.
+                */}
                 {/*
                   `ds/MenuItem` closes the menu on click by default (`closeOnClick`, true
                   unless overridden - see ds/Menu.tsx); the old MUI `MenuItem` never closed on
