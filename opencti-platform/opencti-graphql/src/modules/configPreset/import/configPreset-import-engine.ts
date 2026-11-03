@@ -57,6 +57,31 @@ const toResult = (
   translatable: naming?.translatable ?? false,
 });
 
+// Computes then writes one item of the bundle and returns its result. An error of the item, whether it is read or written, fails
+// this item and is never thrown: the next items go on. Shared by every import that writes items of a bundle (the wizard, the partial import).
+export const importConfigPresetItem = async (
+  context: AuthContext,
+  user: AuthUser,
+  item: ConfigPresetBundleItem,
+  plan: ConfigPresetImportPlan,
+  mode: ConfigImportMode,
+): Promise<ConfigPresetImportItemResult> => {
+  const importer = CONFIG_PRESET_FAMILIES.find((family) => family.id === item.type)!.importer!;
+  let computed: ConfigPresetComputedItem | undefined;
+  try {
+    computed = await importer.compute(context, user, item, plan, mode);
+    if (computed.status === 'failed' || computed.status === 'skipped') {
+      return toResult(item, computed.status, computed.reason, computed);
+    }
+    const applied = await importer.apply(context, user, item, computed, mode);
+    return toResult(item, applied || computed.status, computed.reason, computed);
+  } catch (err) {
+    // The theme was not created: the items that depend on it fail with it
+    plan.created.delete(configPresetPlanKey(item.type, item.id));
+    return toResult(item, 'failed', err instanceof Error ? err.message : String(err), computed);
+  }
+};
+
 const COUNT_KEYS: Record<ConfigPresetImportResultStatus, keyof ConfigPresetImportCounts> = {
   CREATED: 'created',
   OVERWRITTEN: 'overwritten',
@@ -64,7 +89,7 @@ const COUNT_KEYS: Record<ConfigPresetImportResultStatus, keyof ConfigPresetImpor
   FAILED: 'failed',
 };
 
-const countResults = (results: ConfigPresetImportItemResult[]): ConfigPresetImportCounts => {
+export const countConfigPresetImportResults = (results: ConfigPresetImportItemResult[]): ConfigPresetImportCounts => {
   const counts: ConfigPresetImportCounts = { created: 0, overwritten: 0, skipped: 0, failed: 0 };
   results.forEach(({ status }) => {
     counts[COUNT_KEYS[status]] += 1;
@@ -178,25 +203,7 @@ const realImport = async (
           throw FunctionalError('The user who started the import no longer has the right to import');
         }
         const runUser = { ...cachedUser, origin: user.origin } as AuthUser;
-        const importer = CONFIG_PRESET_FAMILIES.find((family) => family.id === item.type)!.importer!;
-        const mode = configPresetImportMode(modes, item.type, item.id);
-        let computed: ConfigPresetComputedItem | undefined;
-        let result: ConfigPresetImportItemResult;
-        // An error of the item, whether it is read or written, fails this item and never the next ones
-        try {
-          computed = await importer.compute(importContext, runUser, item, plan, mode);
-          result = toResult(item, computed.status, computed.reason, computed);
-          if (computed.status !== 'failed' && computed.status !== 'skipped') {
-            const applied = await importer.apply(importContext, runUser, item, computed, mode);
-            if (applied) {
-              result = toResult(item, applied, computed.reason, computed);
-            }
-          }
-        } catch (err) {
-          // The theme was not created: the items that depend on it fail with it
-          plan.created.delete(configPresetPlanKey(item.type, item.id));
-          result = toResult(item, 'failed', err instanceof Error ? err.message : String(err), computed);
-        }
+        const result = await importConfigPresetItem(importContext, runUser, item, plan, configPresetImportMode(modes, item.type, item.id));
         results.push(result);
         await applyConfigPresetImportRunEvent(importContext, user, startedAt, 'ITEM_PROCESSED', { result });
         await updateConfigPresetImportRunning(user, startedAt, results.length);
@@ -234,7 +241,7 @@ const realImport = async (
       logApp.warn('[CONFIG PRESET] The platform bootstrap status could not be set to completed', { cause: err });
     }
   }
-  const counts = countResults(results);
+  const counts = countConfigPresetImportResults(results);
   const report = await writeConfigPresetImportReport(importContext, user, fileId, {
     user_id: user.id,
     started_at: startedAt,

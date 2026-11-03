@@ -4,7 +4,7 @@ import { FunctionalError } from '../../../config/errors';
 import { downloadFile } from '../../../database/raw-file-storage';
 import { deleteFile, type FileUploadData, loadFile, type LoadedFile, uploadToStorage } from '../../../database/file-storage';
 import type { AuthContext, AuthUser } from '../../../types/user';
-import type { ConfigPresetImportPreview } from '../../../generated/graphql';
+import type { ConfigPresetImportPreview, ConfigPresetImportType } from '../../../generated/graphql';
 import type { ConfigImportMode } from '../../configImport/configImport-types';
 import { allFilesForPaths } from '../../internal/document/document-domain';
 import { CONFIG_PRESET_HISTORY_PATH, CONFIG_PRESET_IMPORT_PATH } from '../../internal/document/document-types';
@@ -136,14 +136,14 @@ export const computeConfigPresetItems = async (
   return results;
 };
 
-// The items of the zip per family, with what already exists, the values they would write and their required dependencies
-export const configPresetImportPreview = async (context: AuthContext, user: AuthUser, fileId: string): Promise<ConfigPresetImportPreview> => {
-  const bundle = await readConfigPresetImportBundle(context, user, fileId);
-  const keys: ConfigPresetItemKey[] = bundle.items;
-  const ordered = resolveBundleDependencies(bundle, keys);
-  const results = await computeConfigPresetItems(context, user, ordered);
+// The types of the computed items, in registry order, each with its items: what already exists, the values they would write
+// and their required dependencies. Shared by the preview of the wizard and the one of a partial import.
+export const buildConfigPresetImportTypes = (
+  bundle: ConfigPresetBundle,
+  results: { item: ConfigPresetBundleItem; computed: ConfigPresetComputedItem }[],
+): ConfigPresetImportType[] => {
   const defaultThemeId = bundle.items.find((item) => item.type === 'platform')?.configuration.default_theme as { standard_id?: string } | null | undefined;
-  const types = CONFIG_PRESET_FAMILIES.filter((family) => results.some(({ item }) => item.type === family.id)).map((family) => ({
+  return CONFIG_PRESET_FAMILIES.filter((family) => results.some(({ item }) => item.type === family.id)).map((family) => ({
     key: family.id,
     label: family.label,
     description: family.description,
@@ -165,11 +165,19 @@ export const configPresetImportPreview = async (context: AuthContext, user: Auth
       };
     }),
   }));
+};
+
+// The items of the zip per family, with what already exists, the values they would write and their required dependencies
+export const configPresetImportPreview = async (context: AuthContext, user: AuthUser, fileId: string): Promise<ConfigPresetImportPreview> => {
+  const bundle = await readConfigPresetImportBundle(context, user, fileId);
+  const keys: ConfigPresetItemKey[] = bundle.items;
+  const ordered = resolveBundleDependencies(bundle, keys);
+  const results = await computeConfigPresetItems(context, user, ordered);
   return {
     bundle_name: bundle.metadata.bundle_name,
     openCTI_version: bundle.metadata.openCTI_version,
     generated_at: bundle.metadata.generated_at,
-    types,
+    types: buildConfigPresetImportTypes(bundle, results),
     ignored: bundle.ignored,
   };
 };

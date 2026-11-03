@@ -1302,6 +1302,7 @@ type PlatformEE {
 enum PlatformEESource {
   OPENCTI_LICENSE
   XTM_ONE_LICENSE
+  FILIGRAN_LICENSE
 }
 
 enum PlatformCriticalAlertType {
@@ -10209,6 +10210,8 @@ type Mutation {
   configPresetImportSessionClear(delete_file: Boolean): Boolean!
   configPresetImport(file_id: ID!, selections: [ConfigPresetSelectionInput!]!, dry_run: Boolean): ConfigPresetImportOutput!
   configPresetImportSessionBackToSelection: ConfigPresetImportSession!
+  configPresetPartialImportPreview(file: Upload!, type: ID!): ConfigPresetPartialImportPreview!
+  configPresetPartialImport(file: Upload!, type: ID!, items: [ID!]!, item_modes: [ConfigPresetItemModeInput!]): ConfigPresetPartialImportOutput!
 }
 
 enum WorkflowExecutionStatus {
@@ -17935,6 +17938,19 @@ type ConfigPresetImportRunningDetails {
 type ConfigPresetImportRunning {
   running: ConfigPresetImportRunningDetails
   last_finished_at: DateTime
+}
+
+type ConfigPresetPartialImportPreview {
+  bundle_name: String
+  openCTI_version: String!
+  generated_at: String!
+  type: ConfigPresetImportType
+  default_mode: ConfigImportMode!
+}
+
+type ConfigPresetPartialImportOutput {
+  results: [ConfigPresetImportResult!]!
+  counts: ConfigPresetImportCounts!
 }
 
 input ConfigPresetSelectionInput {
