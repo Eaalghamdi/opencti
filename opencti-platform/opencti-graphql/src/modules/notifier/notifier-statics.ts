@@ -191,9 +191,6 @@ ${HEADER_TEMPLATE}
     stopped: 'background-color: #f1f3f5; border-left: 4px solid #757575;',
   };
   const healthBoxTitles = { critical: ' is critical', degraded: ' is degraded', recovered: ' has recovered', stopped: ' was stopped' };
-  /* The status an event ends on: a recovery is back to healthy */
-  const healthScopeStatuses = { critical: 'critical', degraded: 'degraded', recovered: 'healthy' };
-  const healthStatusLabels = { healthy: 'Healthy', degraded: 'Degraded', critical: 'Critical', unknown: 'Unknown' };
   const ingestionTypeLabels = {
     Connector: 'Connector',
     Sync: 'Sync',
@@ -218,7 +215,7 @@ ${HEADER_TEMPLATE}
   const isDigest = notification.trigger_type === 'digest';
   const triggerLabel = isDigest ? (periodLabels[notification.period] || 'Periodic') + ' digest' : 'Live alert';
   const formatHealthDate = (date) => new Date(date).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' }) + ' UTC';
-  /* What the health manager put in the context of the event: the details of the failure, the status reported before, and since when the current one lasts */
+  /* What the health manager put in the context of the event: the details of the failure, and since when the current status lasts */
   const readHealthEvent = (contentEvent) => {
     const eventData = data.find((entry) => entry.instance && entry.instance.id === contentEvent.instance_id && entry.type === contentEvent.operation);
     const eventInstance = (eventData && eventData.instance) || {};
@@ -231,7 +228,7 @@ ${HEADER_TEMPLATE}
     /* The digest shows the first issue only, followed by how many others there are */
     const allIssues = issues.concat(advisoryIssues);
     const digestMessage = allIssues.length > 0 ? allIssues[0] + (allIssues.length > 1 ? ' (+' + (allIssues.length - 1) + ')' : '') : statusChange.message;
-    return { eventMessage: statusChange.message, digestMessage, issues, advisoryIssues, previousStatus: statusChange.previous_status, statusSince: statusChange.status_since, endStatus: healthScopeStatuses[contentEvent.operation] };
+    return { eventMessage: statusChange.message, digestMessage, issues, advisoryIssues, statusSince: statusChange.status_since };
   };
   const sourceIds = {};
   notification_content.forEach((contentLine) => contentLine.events.forEach((contentEvent) => { sourceIds[contentEvent.instance_id] = true; }));
@@ -284,11 +281,8 @@ ${HEADER_TEMPLATE}
                                                           <% if (healthEvent.digestMessage) { %>
                                                             <div style="margin-top: 8px;"><%= healthEvent.digestMessage %></div>
                                                           <% } %>
-                                                          <% if (healthEvent.endStatus) { %>
-                                                            <div style="margin-top: 8px; font-size: 13px; color: #516f90;">
-                                                               <i>Status:</i> <% if (healthEvent.previousStatus) { %><%= healthStatusLabels[healthEvent.previousStatus] || healthEvent.previousStatus %> &rarr; <% } %><%= healthStatusLabels[healthEvent.endStatus] %>
-                                                               <% if (healthEvent.statusSince) { %> &nbsp;&middot;&nbsp; <i>Detected:</i> <%= formatHealthDate(healthEvent.statusSince) %><% } %>
-                                                            </div>
+                                                          <% if (healthEvent.statusSince) { %>
+                                                            <div style="margin-top: 8px; font-size: 13px; color: #516f90;"><i>Detected:</i> <%= formatHealthDate(healthEvent.statusSince) %></div>
                                                           <% } %>
                                                        </td>
                                                        <td width="60" align="right" valign="top">
@@ -360,12 +354,6 @@ ${HEADER_TEMPLATE}
                                                        <td width="200" valign="top" style="padding: 12px 0; border-bottom: 1px solid #eaf0f6;">Source</td>
                                                        <td valign="top" style="padding: 12px 0; border-bottom: 1px solid #eaf0f6; font-weight: 600;"><%= contentLine.title %> (<%= ingestionTypeLabels[contentEvent.entity_type] || contentEvent.entity_type %>)</td>
                                                     </tr>
-                                                    <% if (healthEvent.endStatus) { %>
-                                                    <tr>
-                                                       <td width="200" valign="top" style="padding: 12px 0; border-bottom: 1px solid #eaf0f6;"><%= healthEvent.previousStatus ? 'Status change' : 'Status' %></td>
-                                                       <td valign="top" style="padding: 12px 0; border-bottom: 1px solid #eaf0f6; font-weight: 600;"><% if (healthEvent.previousStatus) { %><%= healthStatusLabels[healthEvent.previousStatus] || healthEvent.previousStatus %> &rarr; <% } %><%= healthStatusLabels[healthEvent.endStatus] %></td>
-                                                    </tr>
-                                                    <% } %>
                                                  </tbody>
                                               </table>
                                            </td>

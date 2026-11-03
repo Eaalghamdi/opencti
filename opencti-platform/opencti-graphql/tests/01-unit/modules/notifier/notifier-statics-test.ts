@@ -59,13 +59,15 @@ describe('Ingestion health default mailer', () => {
   });
 
   describe('live alert', () => {
-    it('should show the scope, the source, its status and a link to its overview', async () => {
+    it('should show the scope, the source and a link to its overview, without the status change', async () => {
       const rendered = await safeRender(HEALTH_EMAIL_TEMPLATE, buildTemplateData([connectorEvent], LIVE, eventData));
       expect(rendered).toContain('Ingestion health &middot; Live alert</p>');
       expect(rendered).toContain('>Critical</span>');
       expect(rendered).toContain('AlienVault is critical');
       expect(rendered).toContain('AlienVault (Connector)');
-      expect(rendered).toContain('Healthy &rarr; Critical');
+      // The previous status is in the event, but the scope tells what happened: no transition shown
+      expect(rendered).not.toContain('&rarr;');
+      expect(rendered).not.toContain('Status change');
       expect(rendered).toContain('Detected 28 Oct 2026, 06:14 UTC');
       expect(rendered).toContain('Last run failed: HTTP 401 Unauthorized');
       expect(rendered).toContain('href="https://opencti.local/dashboard/integrations/connectors/connector-id?source=email"');
@@ -101,18 +103,18 @@ describe('Ingestion health default mailer', () => {
       expect(rendered).toContain('href="https://opencti.local/dashboard/settings/activity/alerting"');
     });
 
-    it('should show a recovery as back to healthy, with the view label of its kind', async () => {
+    it('should show a recovery with the view label of its kind, without the status it ends on: healthy or unknown', async () => {
       const rendered = await safeRender(HEALTH_EMAIL_TEMPLATE, buildTemplateData([feedEvent], LIVE, { ingestion_health_changes: { previous_status: 'critical' } }));
       expect(rendered).toContain('Abuse feed has recovered');
-      expect(rendered).toContain('Critical &rarr; Healthy');
+      expect(rendered).not.toContain('Healthy');
       expect(rendered).toContain('View feed</a>');
     });
 
-    it('should show the status alone, with neither message nor date, when the event has no context', async () => {
+    it('should show neither message, date nor status when the event has no context: the scope alone', async () => {
       const rendered = await safeRender(HEALTH_EMAIL_TEMPLATE, buildTemplateData([connectorEvent]));
-      expect(rendered).not.toContain('&rarr;');
       expect(rendered).not.toContain('Detected');
-      expect(rendered).toContain('>Status</td>');
+      expect(rendered).not.toContain('>Status</td>');
+      expect(rendered).toContain('>Critical</span>');
     });
 
     it('should not show the sections of a digest', async () => {
@@ -157,18 +159,18 @@ describe('Ingestion health default mailer', () => {
       expect(rendered).toContain('Ingestion health (daily digest)');
     });
 
-    it('should show the message, the status change and since when the status lasts, from the context of the event', async () => {
+    it('should show the message and since when the status lasts, from the context of the event, without the status change', async () => {
       const rendered = await safeRender(HEALTH_EMAIL_TEMPLATE, buildTemplateData([connectorEvent], DIGEST, eventData));
       expect(rendered).toContain('Last run failed: HTTP 401 Unauthorized');
-      expect(rendered).toContain('Healthy &rarr; Critical');
-      expect(rendered).toContain('28 Oct 2026, 06:14 UTC');
+      expect(rendered).not.toContain('&rarr;');
+      expect(rendered).toContain('<i>Detected:</i> 28 Oct 2026, 06:14 UTC');
     });
 
-    it('should show the status alone, with neither message nor date, when the event has no context', async () => {
+    it('should show neither message, date nor status when the event has no context: the scope alone', async () => {
       const rendered = await safeRender(HEALTH_EMAIL_TEMPLATE, buildTemplateData([connectorEvent], DIGEST));
-      expect(rendered).not.toContain('&rarr;');
       expect(rendered).not.toContain('Detected');
-      expect(rendered).toContain('<i>Status:</i> Critical');
+      expect(rendered).not.toContain('<i>Status:</i>');
+      expect(rendered).toContain('>Critical</span>');
     });
 
     it('should not show the sections of a live alert', async () => {
