@@ -57,8 +57,9 @@ interface BaseHealthCheckDefinition {
   supersededBy?: HealthCheckCode;
   // Computed when read, never stored: the entity type of the ingestor adapts it to the kind of ingestion
   // Absent when the failure needs nothing more than the name of the check: the label is the message.
-  // A {key} placeholder is filled from metadata[key]: by the front once translated, by formatHealthCheckMessage elsewhere
-  message?: (metadata: HealthCheckMetadata, entityType: string) => string;
+  // A {key} placeholder is filled from metadata[key]: by the front once translated, by formatHealthCheckMessage elsewhere.
+  // The label of the check is given to build the message from it, so that both can't drift apart
+  message?: (checkLabel: string, metadata: HealthCheckMetadata, entityType: string) => string;
 }
 
 // A runtime check is judged from a value reported by the sources, read by its getRuntimeData.
@@ -110,7 +111,7 @@ export const HEALTH_CHECK_REGISTRY = {
     kind: IngestionHealthCheckKind.Configuration,
     label: 'User lacks required capability',
     // The description of the capability, translated by the front as in the roles
-    message: () => 'User lacks required capability: "{capability_description}"',
+    message: (checkLabel) => `${checkLabel}: "{capability_description}"`,
     // Only an existing user: a missing one is reported by USER_MISSING. Internal users (system...) are not judged
     isEnabled: (ingestor, { user }) => !!user && !user.internal && ingestor.entity_type in REQUIRED_CAPABILITY_BY_INGESTOR_TYPE,
     getFailures: (ingestor, { user }) => {
@@ -159,7 +160,7 @@ export const HEALTH_CHECK_REGISTRY = {
     kind: IngestionHealthCheckKind.Runtime,
     label: 'Feed or sync execution failed',
     // The details stay out of the text: the front translates the message before filling {failure_description}
-    message: (metadata, entityType) => {
+    message: (_, metadata, entityType) => {
       const executionFailed = entityType === ENTITY_TYPE_SYNC ? 'Sync execution failed' : 'Feed execution failed';
       return metadata.failure_description ? `${executionFailed}: {failure_description}` : executionFailed;
     },
@@ -182,8 +183,8 @@ export const HEALTH_CHECK_REGISTRY = {
   // Read from the same details as FEED_AND_SYNC_EXECUTION_FAILED
   [HEALTH_CHECK_SOURCE_ACCESS_DENIED]: defineRuntimeCheck({
     kind: IngestionHealthCheckKind.Runtime,
-    label: 'Source denied access',
-    message: () => 'Source denied access: HTTP {http_status}',
+    label: 'Feed or sync source denied access',
+    message: (checkLabel) => `${checkLabel}: HTTP {http_status}`,
     // Only the failing ones: nothing is read for the others
     isEnabled: (ingestor) => FEED_AND_SYNC_ENTITY_TYPES.includes(ingestor.entity_type) && ingestor.last_execution_status === 'error',
     getRuntimeData: (ingestors) => getFeedsAndSyncsLastFailureDetails(ingestors.map((ingestor) => ingestor.internal_id)),
@@ -200,7 +201,7 @@ export const HEALTH_CHECK_REGISTRY = {
   [HEALTH_CHECK_LAST_RUN_FAILED]: defineRuntimeCheck({
     kind: IngestionHealthCheckKind.Runtime,
     label: 'Last run failed',
-    message: ({ error }) => (error ? 'Last run failed: {error}' : 'Last run failed'),
+    message: (checkLabel, { error }) => (error ? `${checkLabel}: {error}` : checkLabel),
     // A stream has no run. Managed or not: the work is reported by the connector itself
     isEnabled: (ingestor) => ingestor.entity_type === ENTITY_TYPE_CONNECTOR && ingestor.connector_type !== 'STREAM',
     getRuntimeData: (ingestors, read) => loadConnectorsRuntimeState(ingestors, read),
@@ -224,7 +225,7 @@ export const HEALTH_CHECK_REGISTRY = {
   [HEALTH_CHECK_CONNECTOR_ERROR_REPORTED]: defineRuntimeCheck({
     kind: IngestionHealthCheckKind.Runtime,
     label: 'Connector reported an error',
-    message: () => 'Connector reported an error: {error_code} - {error_message}',
+    message: (checkLabel) => `${checkLabel}: {error_code} - {error_message}`,
     isEnabled: (ingestor) => ingestor.entity_type === ENTITY_TYPE_CONNECTOR,
     getRuntimeData: (ingestors) => getConnectorsReportedErrors(ingestors),
     getFailures: (errors) => getReportedConnectorErrorsFailures(errors, (criticity) => criticity < CONNECTOR_ERROR_BLOCKING_CRITICITY, IngestionHealthCheckSeverity.Advisory),
@@ -233,7 +234,7 @@ export const HEALTH_CHECK_REGISTRY = {
   [HEALTH_CHECK_CONNECTOR_CRITICAL_ERROR_REPORTED]: defineRuntimeCheck({
     kind: IngestionHealthCheckKind.Runtime,
     label: 'Connector reported a critical error',
-    message: () => 'Connector reported a critical error: {error_code} - {error_message}',
+    message: (checkLabel) => `${checkLabel}: {error_code} - {error_message}`,
     isEnabled: (ingestor) => ingestor.entity_type === ENTITY_TYPE_CONNECTOR,
     getRuntimeData: (ingestors) => getConnectorsReportedErrors(ingestors),
     getFailures: (errors) => getReportedConnectorErrorsFailures(errors, (criticity) => criticity >= CONNECTOR_ERROR_BLOCKING_CRITICITY, IngestionHealthCheckSeverity.Blocking),

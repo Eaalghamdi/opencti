@@ -499,7 +499,7 @@ describe('source access denied check', () => {
 
   it.each(['IngestionRss', 'Sync'])('should word the message for a %s', (entityType) => {
     const [check] = toGraphqlHealthChecks(ACCESS_DENIED(401), entityType);
-    expect(check.health_check_message).toBe('Source denied access: HTTP {http_status}');
+    expect(check.health_check_message).toBe('Feed or sync source denied access: HTTP {http_status}');
     expect(check.health_check_severity).toBe(IngestionHealthCheckSeverity.Blocking);
     expect(check.health_check_kind).toBe(IngestionHealthCheckKind.Runtime);
   });
@@ -693,6 +693,21 @@ describe('connector reported errors checks', () => {
     expect(computeIngestionHealthPatch({}, checks, CONTEXT)?.ingestion_health?.status).toBe(IngestionHealthStatus.Critical);
   });
 
+  it('should word the message from the label of each check, the error filling its placeholders', () => {
+    const checks = toGraphqlHealthChecks(evaluate([
+      { code: 'RATE_LIMITED', message: 'Too many requests', criticity: LOW },
+      { code: 'AUTH_FAILED', message: 'Invalid API key', criticity: HIGH },
+    ]), CONNECTOR.entity_type);
+    expect(checks.map((check) => check.health_check_message)).toEqual([
+      'Connector reported an error: {error_code} - {error_message}',
+      'Connector reported a critical error: {error_code} - {error_message}',
+    ]);
+    expect(checks.map((check) => formatHealthCheckMessage(check.health_check_message ?? '', check.health_check_metadata ?? {}))).toEqual([
+      'Connector reported an error: RATE_LIMITED - Too many requests',
+      'Connector reported a critical error: AUTH_FAILED - Invalid API key',
+    ]);
+  });
+
   it('should store every error as a check of its own, on the side of the threshold of its criticity', () => {
     const checks = evaluate([
       { code: 'B', message: 'second', criticity: LOW },
@@ -752,7 +767,7 @@ describe('check metadata', () => {
   const failWith = (failures: HealthCheckFailure[]) => {
     registry[TEST_CODE] = {
       kind: IngestionHealthCheckKind.Configuration,
-      message: (data: Record<string, unknown>) => `Failing for ${data.reason}`,
+      message: (_: string, data: Record<string, unknown>) => `Failing for ${data.reason}`,
       isEnabled: () => true,
       getFailures: () => failures,
     };

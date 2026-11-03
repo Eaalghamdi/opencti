@@ -80,7 +80,7 @@ describe('toGraphqlIngestionHealthSettings', () => {
         enabledCheck(HEALTH_CHECK_USER_NOT_SERVICE_ACCOUNT, 'User is not a service account', IngestionHealthCheckKind.Configuration),
         enabledCheck(HEALTH_CHECK_HEARTBEAT_MISSING, 'No heartbeat received', IngestionHealthCheckKind.Runtime),
         enabledCheck(HEALTH_CHECK_FEED_AND_SYNC_EXECUTION_FAILED, 'Feed or sync execution failed', IngestionHealthCheckKind.Runtime),
-        enabledCheck(HEALTH_CHECK_SOURCE_ACCESS_DENIED, 'Source denied access', IngestionHealthCheckKind.Runtime),
+        enabledCheck(HEALTH_CHECK_SOURCE_ACCESS_DENIED, 'Feed or sync source denied access', IngestionHealthCheckKind.Runtime),
         enabledCheck(HEALTH_CHECK_LAST_RUN_FAILED, 'Last run failed', IngestionHealthCheckKind.Runtime),
         enabledCheck(HEALTH_CHECK_CONNECTOR_ERROR_REPORTED, 'Connector reported an error', IngestionHealthCheckKind.Runtime),
         enabledCheck(HEALTH_CHECK_CONNECTOR_CRITICAL_ERROR_REPORTED, 'Connector reported a critical error', IngestionHealthCheckKind.Runtime),
