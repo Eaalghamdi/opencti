@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react';
+import React, { CSSProperties, ReactNode } from 'react';
 import { Chip } from '@filigran/design-system';
 import StixCoreObjectLabels from '@components/common/stix_core_objects/StixCoreObjectLabels';
 import { useTheme } from '@mui/material/styles';
@@ -49,6 +49,22 @@ export const Truncate = ({ children }: { children: ReactNode }) => (
     {children}
   </div>
 );
+
+/*
+ * ds/Badge has no neutral/muted color: every value in its `color` enum is semantic/brand
+ * (its "secondary" aliases `--color-filigran-tonic-primary`, Filigran's own reserved
+ * tonic/brand-accent token - confirmed in ds/tokens.css). @filigran/design-system's own Chip
+ * usage contract (node_modules/@filigran/design-system/skills/consumer/usage-contracts/
+ * Chip.md, RULE-02) is explicit that "color carries no meaning alone... default to neutral...
+ * use tone='tonic' only for a brand marker" - so a semantic color enum value is the wrong tool
+ * for a plain tag label. This overrides Badge's own border/text color with ds/tokens.css's
+ * real neutral tokens instead, for the one place in this file (the `tags` column) using Badge.
+ */
+const neutralBadgeStyle: CSSProperties = {
+  backgroundColor: 'transparent',
+  borderColor: 'var(--border)',
+  color: 'var(--foreground)',
+};
 
 export const defaultRender: NonNullable<DataTableColumn['render']> = (
   data,
@@ -1211,23 +1227,24 @@ const defaultColumns: DataTableProps['dataColumns'] = {
     render: ({ tags }) => {
       if (!tags || tags.length === 0) return EMPTY_VALUE;
       // ds/Badge, not the FDS Chip: this is a small inline label with no interaction (no
-      // onClick/onDelete, same as the Chip it replaces here), so Badge is a correct fit. Badge
-      // has no neutral/muted color, unlike this tag's old plain-chip look; outline+secondary is
-      // the closest low-emphasis approximation available in its current color set.
+      // onClick/onDelete, same as the Chip it replaces here), so Badge is a correct fit.
+      // `variant="outline"` plus `neutralBadgeStyle` (see above) is the local neutral
+      // treatment - not a `color` enum value, which would carry brand/semantic meaning
+      // this plain tag label doesn't have.
       return (
         <Tooltip
           trigger={(
             <div>
-              <Badge variant="outline" color="secondary" style={{ marginInlineEnd: 7 }}>{tags[0]}</Badge>
+              <Badge variant="outline" style={{ ...neutralBadgeStyle, marginInlineEnd: 7 }}>{tags[0]}</Badge>
               {tags.length > 1 && (
-                <Badge variant="outline" color="secondary" style={{ marginInlineEnd: 7 }}>...</Badge>
+                <Badge variant="outline" style={{ ...neutralBadgeStyle, marginInlineEnd: 7 }}>...</Badge>
               )}
             </div>
           )}
           content={(
             <div style={{ display: 'flex', flexWrap: 'wrap', rowGap: '4px' }}>
               {tags.map((tag: string) => (
-                <Badge key={tag} variant="outline" color="secondary" style={{ marginInlineEnd: 7 }}>{tag}</Badge>
+                <Badge key={tag} variant="outline" style={{ ...neutralBadgeStyle, marginInlineEnd: 7 }}>{tag}</Badge>
               ))}
             </div>
           )}

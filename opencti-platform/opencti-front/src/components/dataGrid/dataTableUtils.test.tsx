@@ -107,6 +107,15 @@ describe('dataTableUtils default columns — tags', () => {
     // ds/Badge's own base class (Badge.tsx), confirming this is really ds/Badge rendering,
     // not a lookalike span.
     expect(firstBadge.className).toMatch(/rounded-\[var\(--ds-radius-full\)\]/);
+    // Neutral treatment, not a `color` enum value: ds/Badge's own color enum is all
+    // semantic/brand (its "secondary" aliases Filigran's reserved tonic/brand-accent token —
+    // see ds/tokens.css's `--secondary`), which @filigran/design-system's own Chip usage
+    // contract (Chip.md RULE-02) says is the wrong tool for a plain tag with no meaning of its
+    // own. This asserts the actual rendered neutral styling (ds/tokens.css's real --border/
+    // --foreground tokens), not that a particular `color` prop was passed.
+    const badgeStyle = firstBadge.getAttribute('style') ?? '';
+    expect(badgeStyle).toMatch(/border-color:\s*var\(--border\)/);
+    expect(badgeStyle).toMatch(/color:\s*var\(--foreground\)/);
     expect(screen.getByText('...')).toBeInTheDocument();
     expect(screen.queryByText('beta')).not.toBeInTheDocument();
 
